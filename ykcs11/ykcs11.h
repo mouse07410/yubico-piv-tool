@@ -36,6 +36,10 @@
 #include "openssl_types.h"
 #include "vendors.h"
 
+#define F4 "\x01\x00\x01"
+#define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
+#define PRIME384V1 "\x06\x05\x2b\x81\x04\x00\x22"
+
 #define YKCS11_OP_BUFSIZE  4096
 
 typedef struct {

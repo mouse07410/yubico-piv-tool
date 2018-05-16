@@ -34,6 +34,8 @@
 #include <string.h>
 #include "debug.h"
 
+#include "ykcs11.h"
+
 #include <stdbool.h>
 #include "../tool/util.h"
 
@@ -91,9 +93,13 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   int len_bytes;
   int sw;
 
+  CK_BBOOL is_p384 = CK_FALSE;
+  
   CK_RV rv;
 
-  if(rsa) {
+  fprintf(stderr, "Attempt to generate %s key, key_len=%lu\n", (char *)((rsa == CK_TRUE)?"RSA":"EC"), key_len);
+
+  if(rsa == CK_TRUE) {
     char version[7];
     if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
       int major, minor, build;
@@ -141,6 +147,16 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
 
     break;
 
+  case 384:
+    //DBG("Setting algorithm to YKPIV_ALGO_ECCP384");
+    if (rsa == CK_FALSE) {
+      is_p384 = CK_TRUE;
+      *in_ptr++ = YKPIV_ALGO_ECCP384;
+    } else {
+      return CKR_FUNCTION_FAILED;
+    }
+    break;
+
   default:
     return CKR_FUNCTION_FAILED;
   }
@@ -168,12 +184,16 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   }
 
   if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK ||
-     sw != 0x9000)
+     sw != 0x9000) {
+    DBG("ykpiv_transfer_data returned %0x\n", sw);
     return CKR_DEVICE_ERROR;
-
+  } else {
+    DBG("ykpiv_transfer_data() returned %0x\n", sw);
+  }
+  
   // Create a new empty certificate for the key
   recv_len = sizeof(data);
-  if ((rv = do_create_empty_cert(data, recv_len, rsa, data, &recv_len)) != CKR_OK)
+  if ((rv = do_create_empty_cert(data, recv_len, rsa, is_p384, data, &recv_len)) != CKR_OK)
     return rv;
 
   if (recv_len < 0x80)

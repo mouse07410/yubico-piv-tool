@@ -34,9 +34,6 @@
 #include "debug.h"
 #include <string.h>
 
-#define F4 "\x01\x00\x01"
-#define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
-
 // Supported mechanisms for signature
 static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_RSA_PKCS,
@@ -52,7 +49,8 @@ static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_SHA512_RSA_PKCS_PSS,
   CKM_ECDSA,
   CKM_ECDSA_SHA1,
-  CKM_ECDSA_SHA256
+  CKM_ECDSA_SHA256,
+  CKM_ECDSA_SHA384
 };
 
 // Supported mechanisms for key pair generation
@@ -168,6 +166,8 @@ CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m) {
   case CKM_SHA512_RSA_PKCS_PSS:
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
+  case CKM_ECDSA_SHA512:
   case CKM_SHA_1:
   case CKM_SHA256:
   case CKM_SHA384:
@@ -208,10 +208,12 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
 
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA384_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA384:
       return do_md_init(YKCS11_SHA384, &op_info->op.sign.md_ctx);
 
     case CKM_SHA512_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA512:
       return do_md_init(YKCS11_SHA512, &op_info->op.sign.md_ctx);
 
     default:
@@ -246,6 +248,8 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
   case CKM_SHA512_RSA_PKCS_PSS:
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
+  case CKM_ECDSA_SHA512:
     rv = do_md_update(op_info->op.sign.md_ctx, in, in_len);
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
@@ -319,6 +323,8 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
 
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
+  case CKM_ECDSA_SHA512:
     // Finalize the hash
     rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
     op_info->op.sign.md_ctx = NULL;
@@ -388,8 +394,12 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 
     case CKA_KEY_TYPE:
       if ((op_info->op.gen.rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (op_info->op.gen.rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
+          (op_info->op.gen.rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA)) {
+        fprintf(stderr, "Wrong key type gen.rsa=%s pValue=%lu\n",
+                ((char *)(op_info->op.gen.rsa == CK_TRUE? "True" : "False")),
+                (*((CK_KEY_TYPE *)templ[i].pValue)));
         return CKR_TEMPLATE_INCONSISTENT;
+      }
 
       break;
 
@@ -419,16 +429,29 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     case CKA_EC_PARAMS:
-      // Only support PRIME256V1
-      if (templ[i].ulValueLen != 10 || memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) != 0)
-        return CKR_FUNCTION_FAILED;
-
-      op_info->op.gen.key_len = 256;
+      // Only support PRIME256V1 and PRIME384V1
+      if ((templ[i].ulValueLen != 10 && templ[i].ulValueLen != 7) ||
+	  (   (memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) != 0)
+           && (memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME384V1, 7)  != 0)
+	      )
+          )
+	{
+	  DBG("CKA_EC_PARAMS: either ulValueLen=%lu or pValue bad: not P256 or P384\n",
+	      templ[i].ulValueLen);
+	  return CKR_FUNCTION_FAILED;
+	}
+      
+      if (memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
+        op_info->op.gen.key_len = 256;
+      else
+        op_info->op.gen.key_len = 384;
       break;
 
     case CKA_ID:
-      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE) {
+	DBG("CKA_ID: is_valid_key_id(0x%02x) failed\n", (*((CK_BYTE_PTR)templ[i].pValue)));
         return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
 
       op_info->op.gen.key_id = PIV_PVTK_OBJ_PIV_AUTH + *((CK_BYTE_PTR)templ[i].pValue);
       break;
@@ -443,7 +466,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     default:
-      DBG("Invalid attribute %lx in public key template", templ[i].type);
+      DBG("Invalid attribute 0x%lx in public key template", templ[i].type);
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
   }

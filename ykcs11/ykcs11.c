@@ -1060,6 +1060,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     rv = check_create_ec_key(pTemplate, ulCount, &id, &ec_data, &ec_data_len, &vendor_defined);
     if (rv != CKR_OK) {
       // Try to parse the key as RSA
+      DBG("Private key template was not EC, trying RSA...");
       is_rsa = CK_TRUE;
       rv = check_create_rsa_key(pTemplate, ulCount, &id,
                                 &p, &p_len,
@@ -1094,7 +1095,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       }
     }
     else {
-      DBG("Key is ECDSA");
+      DBG("Key is ECDSA, ec_data_len=%lu\n", ec_data_len);
       rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object),
                                           NULL, 0,
                                           NULL, 0,
@@ -1799,8 +1800,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
     if (op_info.op.sign.key_len == 256)
       op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
-    /*else
-      op_info.op.sign.algo = YKPIV_ALGO_ECCP384;*/ // TODO: add support for P384
+    else
+      op_info.op.sign.algo = YKPIV_ALGO_ECCP384; // TODO: add support for P384
   }
 
   DBG("Key length is %lu bit", op_info.op.sign.key_len);
@@ -1814,10 +1815,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   DBG("Algorithm is %d", op_info.op.sign.algo);
   // Make sure that both mechanism and key have the same algorithm
   if ((is_RSA_mechanism(pMechanism->mechanism) && op_info.op.sign.algo == YKPIV_ALGO_ECCP256) ||
-      (!is_RSA_mechanism(pMechanism->mechanism) && (op_info.op.sign.algo != YKPIV_ALGO_ECCP256))) {
-    DBG("Key and mechanism algorithm do not match");
-    return CKR_ARGUMENTS_BAD;
-  }
+      (!is_RSA_mechanism(pMechanism->mechanism)
+       && (op_info.op.sign.algo != YKPIV_ALGO_ECCP256)
+       && (op_info.op.sign.algo != YKPIV_ALGO_ECCP384)
+       )
+      )
+    {
+      DBG("Key and mechanism algorithm do not match");
+      return CKR_ARGUMENTS_BAD;
+    }
 
   op_info.type = YKCS11_SIGN;
 
@@ -2239,7 +2245,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  DBG("Trying to generate a key pair with mechanism %lx", pMechanism->mechanism);
+  DBG("Trying to generate a key pair with mechanism 0x%lx", pMechanism->mechanism);
 
   DBG("Found %lu attributes for the public key and %lu attributes for the private key", ulPublicKeyAttributeCount, ulPrivateKeyAttributeCount);
 
@@ -2286,7 +2292,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   token = get_token_vendor(session.slot->token->vid);
 
   if ((rv = token.token_generate_key(piv_state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len, op_info.op.gen.vendor_defined)) != CKR_OK) {
-    DBG("Unable to generate key pair");
+    DBG("Unable to generate key pair (rv=%lu)", rv);
     return rv;
   }
 

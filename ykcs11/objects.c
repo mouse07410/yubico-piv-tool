@@ -39,9 +39,6 @@
 
 #define IS_CERT(x) (((x) >= PIV_CERT_OBJ_X509_PIV_AUTH && (x) <  PIV_CERT_OBJ_LAST) ? CK_TRUE : CK_FALSE)
 
-#define F4 "\x01\x00\x01" // TODO: already define in mechanisms.c. Move
-#define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07" // TODO: already define in mechanisms.c. Move
-
 CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template); // TODO: static?
 CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
 CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
@@ -51,9 +48,9 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
 /* Must be in order, and one per enumerated PIV_OBJ */
 static piv_obj_t piv_objects[] = {
   {PIV_DATA_OBJ_X509_PIV_AUTH, 1, 0, 0, "X.509 Certificate for PIV Authentication", 0, 0, get_doa, 0},
-  {PIV_DATA_OBJ_X509_CARD_AUTH, 1, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, get_doa, 1},
-  {PIV_DATA_OBJ_X509_DS, 1, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, get_doa, 2},
-  {PIV_DATA_OBJ_X509_KM, 1, 0, 0, "X.509 Certificate for Key Management", 0, 0, get_doa, 3},
+  {PIV_DATA_OBJ_X509_DS, 1, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, get_doa, 1},
+  {PIV_DATA_OBJ_X509_KM, 1, 0, 0, "X.509 Certificate for Key Management", 0, 0, get_doa, 2},
+  {PIV_DATA_OBJ_X509_CARD_AUTH, 1, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, get_doa, 3},
   {PIV_DATA_OBJ_X509_RETIRED1, 1, 0, 0, "X.509 Certificate for Retired Key 1", 0, 0, get_doa, 4},
   {PIV_DATA_OBJ_X509_RETIRED2, 1, 0, 0, "X.509 Certificate for Retired Key 2", 0, 0, get_doa, 5},
   {PIV_DATA_OBJ_X509_RETIRED3, 1, 0, 0, "X.509 Certificate for Retired Key 3", 0, 0, get_doa, 6},
@@ -89,9 +86,9 @@ static piv_obj_t piv_objects[] = {
   {PIV_DATA_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 36},
 
   {PIV_CERT_OBJ_X509_PIV_AUTH, 1, 0, 0, "X.509 Certificate for PIV Authentication", 0, 0, get_coa, 0},
-  {PIV_CERT_OBJ_X509_CARD_AUTH, 1, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, get_coa, 1},
-  {PIV_CERT_OBJ_X509_DS, 1, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, get_coa, 2},
-  {PIV_CERT_OBJ_X509_KM, 1, 0, 0, "X.509 Certificate for Key Management", 0, 0, get_coa, 3},
+  {PIV_CERT_OBJ_X509_DS, 1, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, get_coa, 1},
+  {PIV_CERT_OBJ_X509_KM, 1, 0, 0, "X.509 Certificate for Key Management", 0, 0, get_coa, 2},
+  {PIV_CERT_OBJ_X509_CARD_AUTH, 1, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, get_coa, 3},
   {PIV_CERT_OBJ_X509_RETIRED1, 1, 0, 0, "X.509 Certificate for Retired Key 1", 0, 0, get_coa, 4},
   {PIV_CERT_OBJ_X509_RETIRED2, 1, 0, 0, "X.509 Certificate for Retired Key 2", 0, 0, get_coa, 5},
   {PIV_CERT_OBJ_X509_RETIRED3, 1, 0, 0, "X.509 Certificate for Retired Key 3", 0, 0, get_coa, 6},
@@ -115,9 +112,9 @@ static piv_obj_t piv_objects[] = {
   {PIV_CERT_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 24},
 
   {PIV_PVTK_OBJ_PIV_AUTH, 1, 1, 0, "Private key for PIV Authentication", 0, 0, get_proa, 0},   // 9a
-  {PIV_PVTK_OBJ_CARD_AUTH, 1, 0, 0, "Private key for Card Authentication", 0, 0, get_proa, 1}, // 9e
-  {PIV_PVTK_OBJ_DS, 1, 1, 0, "Private key for Digital Signature", 0, 0, get_proa, 2},          // 9c
-  {PIV_PVTK_OBJ_KM, 1, 1, 0, "Private key for Key Management", 0, 0, get_proa, 3},             // 9d
+  {PIV_PVTK_OBJ_DS, 1, 1, 0, "Private key for Digital Signature", 0, 0, get_proa, 1},          // 9c
+  {PIV_PVTK_OBJ_KM, 1, 1, 0, "Private key for Key Management", 0, 0, get_proa, 2},             // 9d
+  {PIV_PVTK_OBJ_CARD_AUTH, 1, 0, 0, "Private key for Card Authentication", 0, 0, get_proa, 3}, // 9e
   {PIV_PVTK_OBJ_RETIRED1, 1, 1, 0, "Private key for Retired Key 1", 0, 0, get_proa, 4},
   {PIV_PVTK_OBJ_RETIRED2, 1, 1, 0, "Private key for Retired Key 2", 0, 0, get_proa, 5},
   {PIV_PVTK_OBJ_RETIRED3, 1, 1, 0, "Private key for Retired Key 3", 0, 0, get_proa, 6},
@@ -141,9 +138,9 @@ static piv_obj_t piv_objects[] = {
   {PIV_PVTK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 24},
 
   {PIV_PUBK_OBJ_PIV_AUTH, 1, 0, 0, "Public key for PIV Authentication", 0, 0, get_puoa, 0},
-  {PIV_PUBK_OBJ_CARD_AUTH, 1, 0, 0, "Public key for Card Authentication", 0, 0, get_puoa, 1},
-  {PIV_PUBK_OBJ_DS, 1, 0, 0, "Public key for Digital Signature", 0, 0, get_puoa, 2},
-  {PIV_PUBK_OBJ_KM, 1, 0, 0, "Public key for Key Management", 0, 0, get_puoa, 3},
+  {PIV_PUBK_OBJ_DS, 1, 0, 0, "Public key for Digital Signature", 0, 0, get_puoa, 1},
+  {PIV_PUBK_OBJ_KM, 1, 0, 0, "Public key for Key Management", 0, 0, get_puoa, 2},
+  {PIV_PUBK_OBJ_CARD_AUTH, 1, 0, 0, "Public key for Card Authentication", 0, 0, get_puoa, 3},
   {PIV_PUBK_OBJ_RETIRED1, 1, 0, 0, "Public key for Retired Key 1", 0, 0, get_puoa, 4},
   {PIV_PUBK_OBJ_RETIRED2, 1, 0, 0, "Public key for Retired Key 2", 0, 0, get_puoa, 5},
   {PIV_PUBK_OBJ_RETIRED3, 1, 0, 0, "Public key for Retired Key 3", 0, 0, get_puoa, 6},
@@ -169,9 +166,9 @@ static piv_obj_t piv_objects[] = {
 
 static piv_data_obj_t data_objects[] = {
   {"2.16.840.1.101.3.7.2.1.1",   3, "\x5F\xC1\x05", "\x01\x01"}, // PIV Authentication
-  {"2.16.840.1.101.3.7.2.5.0",   3, "\x5F\xC1\x01", "\x05\x00"}, // Card Authentication
   {"2.16.840.1.101.3.7.2.1.0",   3, "\x5F\xC1\x0A", "\x01\x00"}, // Digital Signature
   {"2.16.840.1.101.3.7.2.1.2",   3, "\x5F\xC1\x0B", "\x01\x02"}, // Key Management
+  {"2.16.840.1.101.3.7.2.5.0",   3, "\x5F\xC1\x01", "\x05\x00"}, // Card Authentication
   {"2.16.840.1.101.3.7.2.16.1",  3, "\x5F\xC1\x0D", "\x10\x01"}, // Retired Key 1
   {"2.16.840.1.101.3.7.2.16.2",  3, "\x5F\xC1\x0E", "\x10\x02"}, // Retired Key 2
   {"2.16.840.1.101.3.7.2.16.3",  3, "\x5F\xC1\x0F", "\x10\x03"}, // Retired Key 3
@@ -451,7 +448,7 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     break;
 
   default:
-    DBG("UNKNOWN ATTRIBUTE %lx", template[0].type);
+    DBG("UNKNOWN ATTRIBUTE 0x%lx", template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
     return CKR_ATTRIBUTE_TYPE_INVALID;
   }
@@ -1339,7 +1336,7 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
       break;
 
     default:
-      DBG("Invalid %lx", templ[i].type);
+      DBG("Invalid 0x%lx", templ[i].type);
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
   }
@@ -1367,36 +1364,45 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
     case CKA_CLASS:
-      if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY)
+      if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY) {
+	DBG("CKA_CLASS attr pValue=0x%lx not CKO_PRIVATE_KEY\n", *((CK_ULONG_PTR)templ[i].pValue));
         return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
 
       break;
 
     case CKA_KEY_TYPE:
-      if (*((CK_ULONG_PTR)templ[i].pValue) != CKK_ECDSA)
+      if (*((CK_ULONG_PTR)templ[i].pValue) != CKK_ECDSA) {
+	DBG("CKA_KEY_TYPE attr pValue=0x%lx not CKK_ECDSA\n", *((CK_ULONG_PTR)templ[i].pValue));
         return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
 
       break;
 
     case CKA_ID:
       has_id = CK_TRUE;
-      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE) {
+	DBG("CKA_ID attr pValue=0x%lx not valid_key_id()\n", *((CK_ULONG_PTR)templ[i].pValue));
         return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
 
       *id = *((CK_BYTE_PTR)templ[i].pValue);
+      DBG("CKA_ID pValue=0x%02x\n", *((CK_BYTE_PTR)templ[i].pValue));
       break;
 
     case CKA_VALUE:
       has_value = CK_TRUE;
       *value = (CK_BYTE_PTR)templ[i].pValue;
       *value_len = templ[i].ulValueLen;
+      DBG("CKA_VALUE len=%lu\n", templ[i].ulValueLen);
       break;
 
     case CKA_EC_PARAMS:
       has_params = CK_TRUE;
       ec_params = (CK_BYTE_PTR)templ[i].pValue;
       ec_params_len = templ[i].ulValueLen;
-
+      DBG("CKA_EC_PARAMS len=%lu\n", templ[i].ulValueLen);
+      DBG("CKA_EC_PARAMS first byte=0x%02x\n", *((CK_BYTE_PTR)templ[i].pValue));
       break;
 
     case CKA_VENDOR_DEFINED:
@@ -1412,7 +1418,7 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       break;
 
     default:
-      DBG("Invalid %lx", templ[i].type);
+      DBG("Invalid 0x%lx", templ[i].type);
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
   }
@@ -1423,12 +1429,22 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
     return CKR_TEMPLATE_INCOMPLETE;
 
   if (*value_len == 32 || *value_len == 31) {
-    if (ec_params_len != 10 || memcmp(ec_params, PRIME256V1, ec_params_len) != 0)
+    if (ec_params_len != 10 || memcmp(ec_params, PRIME256V1, ec_params_len) != 0) {
+      DBG("CKA_EC_PARAMS for P256: ec_param_len=%lu not 10, or DER of OID isn't PRIME256V1\n", ec_params_len);
       return CKR_ATTRIBUTE_VALUE_INVALID;
+    }
   }
-  else /*if () TODO: P384*/
+  if (*value_len == 48 || *value_len == 47) {
+    if (ec_params_len != 7 || memcmp(ec_params, PRIME384V1, ec_params_len) != 0) {
+      DBG("CKA_EC_PARAMS for P384: ec_param_len=%lu not 7, or DER of OID isn't PRIME384V1\n", ec_params_len);
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+    }
+  }
+  else {
+    DBG("Wrong size for EC key length (%lu)\n", *value_len);
     return CKR_ATTRIBUTE_VALUE_INVALID;
-
+  }
+  
   return CKR_OK;
 }
 
