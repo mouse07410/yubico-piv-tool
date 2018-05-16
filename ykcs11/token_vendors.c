@@ -97,7 +97,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   
   CK_RV rv;
 
-  fprintf(stderr, "Attempt to generate %s key, key_len=%lu\n", (char *)((rsa == CK_TRUE)?"RSA":"EC"), key_len);
+  DBG("Attempt to generate %s key, key_len=%lu\n", (char *)((rsa == CK_TRUE)?"RSA":"EC"), key_len);
 
   if(rsa == CK_TRUE) {
     char version[7];
