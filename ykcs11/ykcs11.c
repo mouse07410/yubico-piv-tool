@@ -1004,8 +1004,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     DBG("Certificate id is %u", id);
 
-    object = PIV_CERT_OBJ_X509_PIV_AUTH + id;
-
+    object = PIV_CERT_OBJ_X509_PIV_AUTH + id - 1;
+    if (object > 1000) object = 0;
+		     
     rv = token.token_import_cert(piv_state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
     if (rv != CKR_OK) {
       DBG("Unable to import certificate");
@@ -1077,7 +1078,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     DBG("Key id is %u", id);
 
-    object = PIV_PVTK_OBJ_PIV_AUTH + id;
+    object = PIV_PVTK_OBJ_PIV_AUTH + id -1;
+    if (object > 1000) object = 0;
 
     if (is_rsa == CK_TRUE) {
       DBG("Key is RSA");
@@ -1110,8 +1112,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       }
     }
 
-    *phObject = PIV_PVTK_OBJ_PIV_AUTH + id;
-
+    *phObject = PIV_PVTK_OBJ_PIV_AUTH + id -1;
+    if (*phObject > 1000) *phObject = 0;
+    
     break;
 
   default:
@@ -1186,7 +1189,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   token = get_token_vendor(session.slot->token->vid);
 
-  rv = token.token_delete_cert(piv_state, piv_2_ykpiv(hObject));
+  rv = token.token_delete_cert(piv_state, piv_2_ykpiv(hObject-1));
   if (rv != CKR_OK) {
     DBG("Unable to delete object %lu", hObject);
     return rv;
@@ -1195,9 +1198,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   // Remove the object from the session
   // Do it in a slightly inefficient way but preserve ordering
 
-  cert_id = PIV_CERT_OBJ_X509_PIV_AUTH + id; // TODO: make function for these
-  pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id;
-  pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id;
+  cert_id = PIV_CERT_OBJ_X509_PIV_AUTH + id -1; // TODO: make function for these
+  pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id -1;
+  pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id -1;
 
   obj_ptr = malloc((session.slot->token->n_objects - 3) * sizeof(piv_obj_id_t));
   if (obj_ptr == NULL) {
@@ -2291,6 +2294,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   token = get_token_vendor(session.slot->token->vid);
 
+  DBG("IMPORTANT! op_info.op.gen.key_id = %02u\n", op_info.op.gen.key_id);
+
+  if (op_info.op.gen.key_id > 0)
+    op_info.op.gen.key_id -= 1; // ULB hack to bring key id back in line
+  
   if ((rv = token.token_generate_key(piv_state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len, op_info.op.gen.vendor_defined)) != CKR_OK) {
     DBG("Unable to generate key pair (rv=%lu)", rv);
     return rv;
@@ -2302,11 +2310,30 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
       is_new = CK_FALSE;
   }
 
+  DBG("IMPORTANT2! op_info.op.gen.key_id = %02u\n", op_info.op.gen.key_id);
+
   dobj_id = op_info.op.gen.key_id - PIV_PVTK_OBJ_PIV_AUTH; // TODO: make function for these
   cert_id = PIV_DATA_OBJ_LAST + 1 + dobj_id;
   pvtk_id = op_info.op.gen.key_id;
   pubk_id = PIV_PVTK_OBJ_LAST + 1 + dobj_id;
 
+  DBG("IMPORTANT3!\tPIV_DATA_OBJ=%02d\tPIV_DATA_OBJ_LAST=%02d\n",
+      PIV_DATA_OBJ_X509_PIV_AUTH, PIV_DATA_OBJ_LAST);
+  DBG("IMPORTANT3!\tPIV_CERT_OBJ=%02d\tPIV_CERT_OBJ_LAST=%02d\n",
+      PIV_CERT_OBJ_X509_PIV_AUTH, PIV_CERT_OBJ_LAST);
+  DBG("IMPORTANT3!\tPIV_PVTK_OBJ=%02d\tPIV_PVTK_OBJ_LAST=%02d\n",
+      PIV_PVTK_OBJ_PIV_AUTH, PIV_PVTK_OBJ_LAST);
+  DBG("IMPORTANT3!\tPIV_PUBK_OBJ=%02d\tPIV_PUBK_OBJ_LAST=%02d\n",
+      PIV_PUBK_OBJ_PIV_AUTH, PIV_PUBK_OBJ_LAST);
+  
+  DBG("IMPORTANT4! Adjusted dobj_id=%02lu cert_id=%02lu pvtk_id=%02lu pubk_id=%02lu\n",
+      (dobj_id - PIV_DATA_OBJ_X509_PIV_AUTH),
+      (cert_id - PIV_CERT_OBJ_X509_PIV_AUTH),
+      (pvtk_id - PIV_PVTK_OBJ_PIV_AUTH),
+      (pubk_id - PIV_PUBK_OBJ_PIV_AUTH)
+      );
+
+  
   // Check whether we created a new object or updated an existing one
   if (is_new == CK_TRUE) {
     // New object created, add it to the object list
