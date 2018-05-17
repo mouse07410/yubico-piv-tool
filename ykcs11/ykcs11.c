@@ -1004,6 +1004,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     DBG("Certificate id is %u", id);
 
+    // ULB: make sure this offset by 1 is OK. Maybe remove it?
     object = PIV_CERT_OBJ_X509_PIV_AUTH + id - 1;
     if (object > 1000) object = 0;
 		     
@@ -1078,6 +1079,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     DBG("Key id is %u", id);
 
+    // ULB: Make sure this offset by 1 is OK.
     object = PIV_PVTK_OBJ_PIV_AUTH + id -1;
     if (object > 1000) object = 0;
 
@@ -1112,6 +1114,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       }
     }
 
+    // ULB: double-check this offset by 1.
     *phObject = PIV_PVTK_OBJ_PIV_AUTH + id -1;
     if (*phObject > 1000) *phObject = 0;
     
