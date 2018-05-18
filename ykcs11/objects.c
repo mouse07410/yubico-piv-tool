@@ -421,6 +421,7 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     DBG("LABEL");
     len = strlen(piv_objects[obj].label) + 1;
     data = (CK_BYTE_PTR) piv_objects[obj].label;
+    DBG("Label[%1lu] is: \"%.*s\"\n", obj, (len-1), (CK_BYTE_PTR) piv_objects[obj].label);
     break;
 
   case CKA_APPLICATION:

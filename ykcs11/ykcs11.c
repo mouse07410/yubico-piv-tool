@@ -2253,7 +2253,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   DBG("Trying to generate a key pair with mechanism 0x%lx", pMechanism->mechanism);
 
-  DBG("Found %lu attributes for the public key and %lu attributes for the private key", ulPublicKeyAttributeCount, ulPrivateKeyAttributeCount);
+  DBG("Found %lu attributes for the public key and %lu attributes for the private key",
+      ulPublicKeyAttributeCount, ulPrivateKeyAttributeCount);
 
   // Check if mechanism is supported
   if ((rv = check_generation_mechanism(&session, pMechanism)) != CKR_OK) {
