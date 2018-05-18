@@ -50,7 +50,8 @@ static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_ECDSA,
   CKM_ECDSA_SHA1,
   CKM_ECDSA_SHA256,
-  CKM_ECDSA_SHA384
+  CKM_ECDSA_SHA384,
+  CKM_ECDSA_SHA512
 };
 
 // Supported mechanisms for key pair generation
