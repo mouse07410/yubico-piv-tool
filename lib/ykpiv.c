@@ -134,7 +134,7 @@ int _ykpiv_set_length(unsigned char *buffer, size_t length) {
   if(length < 0x80) {
     *buffer++ = (unsigned char)length;
     return 1;
-  } else if(length < 0xff) {
+  } else if(length < 0x100) {
     *buffer++ = 0x81;
     *buffer++ = (unsigned char)length;
     return 2;
@@ -562,7 +562,11 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
       goto Cleanup;
     }
     if(*out_len + recv_len - 2 > max_out) {
-      fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
+      if(state->verbose) {
+        fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
+      }
+      res = YKPIV_SIZE_ERROR;
+      goto Cleanup;
     }
     if(out_data) {
       memcpy(out_data, data, recv_len - 2);
@@ -1278,6 +1282,12 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     if(offs == 0) {
       return YKPIV_SIZE_ERROR;
     }
+    if(outlen + offs + 1 != *len) {
+      if(state->verbose) {
+        fprintf(stderr, "Invalid length indicated in object, total objlen is %lu, indicated length is %lu.", *len, outlen);
+      }
+      return YKPIV_SIZE_ERROR;
+    }
     memmove(data, data + 1 + offs, outlen);
     *len = (unsigned long)outlen;
     return YKPIV_OK;
@@ -1483,7 +1493,6 @@ Cleanup:
 
 ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len) {
   ykpiv_rc res;
-  bool ret = false;
   unsigned char templ[] = {0, YKPIV_INS_ATTEST, key, 0};
   int sw;
   unsigned long ul_data_len;

@@ -561,6 +561,12 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     unsigned char certdata[YKPIV_OBJ_MAX_SIZE];
     unsigned char *certptr = certdata;
     ykpiv_rc res;
+
+    if(cert_len > YKPIV_OBJ_MAX_SIZE) {
+      fprintf(stderr, "Length of certificate is more than can fit.\n");
+      goto import_cert_out;
+    }
+
     if (compress) {
       if (fread(certdata, 1, (size_t)cert_len, input_file) != (size_t)cert_len) {
         fprintf(stderr, "Failed to read compressed certificate\n");
@@ -627,20 +633,19 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   EVP_PKEY *public_key = NULL;
   const EVP_MD *md;
   bool ret = false;
-  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN];
-  unsigned int digest_len;
-  unsigned int md_len;
   unsigned char algorithm;
   int key = 0;
-  unsigned char *signinput;
-  size_t len = 0;
   size_t oid_len;
   const unsigned char *oid;
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN];
+  unsigned int md_len;
+  unsigned int digest_len;
+  unsigned char *signinput;
+  size_t len = 0;
   int nid;
   ASN1_TYPE null_parameter;
-
-  null_parameter.type = V_ASN1_NULL;
-  null_parameter.value.ptr = NULL;
+#endif
 
   key = get_slot_hex(slot);
 
@@ -674,9 +679,6 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  md_len = (unsigned int)EVP_MD_size(md);
-  digest_len = sizeof(digest) - md_len;
-
   req = X509_REQ_new();
   if(!req) {
     fprintf(stderr, "Failed to allocate request structure.\n");
@@ -700,6 +702,12 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   }
 
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+  null_parameter.type = V_ASN1_NULL;
+  null_parameter.value.ptr = NULL;
+
+  md_len = (unsigned int)EVP_MD_size(md);
+  digest_len = sizeof(digest) - md_len;
+
   memcpy(digest, oid, oid_len);
   /* XXX: this should probably use X509_REQ_digest() but that's buggy */
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), md, req->req_info,
@@ -785,22 +793,21 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   X509 *x509 = NULL;
   X509_NAME *name = NULL;
   const EVP_MD *md;
-  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN];
-  unsigned int digest_len;
   unsigned char algorithm;
   int key = 0;
-  unsigned char *signinput;
-  size_t len = 0;
   size_t oid_len;
   const unsigned char *oid;
   int nid;
-  unsigned int md_len;
   ASN1_INTEGER *sno = ASN1_INTEGER_new();
   BIGNUM *ser = NULL;
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN];
+  unsigned int digest_len;
+  unsigned int md_len;
+  unsigned char *signinput;
+  size_t len = 0;
   ASN1_TYPE null_parameter;
-
-  null_parameter.type = V_ASN1_NULL;
-  null_parameter.value.ptr = NULL;
+#endif
 
   key = get_slot_hex(slot);
 
@@ -833,9 +840,6 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   if(md == NULL) {
     goto selfsign_out;
   }
-  md_len = (unsigned int)EVP_MD_size(md);
-  digest_len = sizeof(digest) - md_len;
-
   x509 = X509_new();
   if(!x509) {
     fprintf(stderr, "Failed to allocate certificate structure.\n");
@@ -904,6 +908,12 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     goto selfsign_out;
   }
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+  null_parameter.type = V_ASN1_NULL;
+  null_parameter.value.ptr = NULL;
+
+  md_len = (unsigned int)EVP_MD_size(md);
+  digest_len = sizeof(digest) - md_len;
+
   if(YKPIV_IS_RSA(algorithm)) {
     signinput = digest;
     len = oid_len + md_len;
