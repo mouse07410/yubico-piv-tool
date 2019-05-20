@@ -463,6 +463,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
     case CKA_WRAP:
     case CKA_DERIVE:
     case CKA_PRIVATE:
+    case CKA_LABEL:
       // Ignore these attributes for now
       break;
 
@@ -532,6 +533,7 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
     case CKA_PRIVATE:
     case CKA_TOKEN:
     case CKA_DERIVE:
+    case CKA_LABEL:
       // Ignore these attributes for now
       break;
 
