@@ -34,6 +34,10 @@
 #include "debug.h"
 #include <string.h>
 
+#define F4 "\x01\x00\x01"
+#define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
+#define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22"
+
 // Supported mechanisms for signature
 static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_RSA_PKCS,
@@ -146,6 +150,23 @@ CK_BBOOL is_PSS_mechanism(CK_MECHANISM_TYPE m) {
   case CKM_SHA384_RSA_PKCS_PSS:
     return CK_TRUE;
 
+  default:
+    return CK_FALSE;
+  }
+
+  // Not reached
+  return CK_FALSE;
+}
+
+CK_BBOOL is_EC_mechanism(CK_MECHANISM_TYPE m) {
+  switch (m) {
+  case CKM_EC_KEY_PAIR_GEN:
+  case CKM_ECDSA:
+  case CKM_ECDSA_SHA1:
+  case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
+  //case CKM_ECDSA_SHA512:
+    return CK_TRUE;
   default:
     return CK_FALSE;
   }
@@ -430,22 +451,13 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     case CKA_EC_PARAMS:
-      // Only support PRIME256V1 and PRIME384V1
-      if ((templ[i].ulValueLen != 10 && templ[i].ulValueLen != 7) ||
-	  (   (memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) != 0)
-           && (memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME384V1, 7)  != 0)
-	      )
-          )
-	{
-	  DBG("CKA_EC_PARAMS: either ulValueLen=%lu or pValue bad: not P256 or P384\n",
-	      templ[i].ulValueLen);
-	  return CKR_FUNCTION_FAILED;
-	}
-      
-      if (memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
+      // Support PRIME256V1 and SECP384R1
+      if (templ[i].ulValueLen == 10 && memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
         op_info->op.gen.key_len = 256;
-      else
+      else if(templ[i].ulValueLen == 7 && memcmp((CK_BYTE_PTR)templ[i].pValue, SECP384R1, 7) == 0)
         op_info->op.gen.key_len = 384;
+      else
+        return CKR_FUNCTION_FAILED;
       break;
 
     case CKA_ID:

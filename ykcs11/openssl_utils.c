@@ -67,7 +67,7 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
 
 }
 
-CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_BBOOL is_p384,
+CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_algorithm,
                            CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
 
   X509      *cert = NULL;
@@ -141,76 +141,42 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
     if (EVP_PKEY_set1_RSA(key, rsa) == 0)
       goto create_empty_cert_cleanup;
   }
-  else { 
-    // ECC cert
-    DBG("Creating an empty ECC cert");
+  else {
+    // ECCP256 and ECCP384
     data_ptr = in + 3;
     
     eck = EC_KEY_new();
-    if (eck == NULL) {
-      DBG("EC_KEY_new() failed");
+    if (eck == NULL)
       goto create_empty_cert_cleanup;
-    }
-    
-    if (is_p384 == CK_TRUE) {
-      // ECCP384
-      DBG("Creating an empty ECCP384 cert");
-      ecg = EC_GROUP_new_by_curve_name(NID_secp384r1);
-      if (ecg == NULL) {
-	DBG("EC_GROUP_new_by_curve_name(NID_secp384r1) failed");
-	goto create_empty_cert_cleanup;
-      }
-      
-      EC_GROUP_set_asn1_flag(ecg, NID_secp384r1);
-      EC_KEY_set_group(eck, ecg);
-      ecp = EC_POINT_new(ecg);
-    } else {
-      // ECCP256
-      DBG("Creating an empty ECCP256 cert");
-      ecg = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-      if (ecg == NULL)
-	goto create_empty_cert_cleanup;
-      
-      EC_GROUP_set_asn1_flag(ecg, NID_X9_62_prime256v1);
-      EC_KEY_set_group(eck, ecg);
-      ecp = EC_POINT_new(ecg);
-    }
-    
-    if(*data_ptr++ != 0x86) {
-      DBG("*data_ptr=%0x02x -> not 0x86\n", *(data_ptr - 1));
-      //goto create_empty_cert_cleanup;
-    }
-    
 
-    int curve_point_len = *((CK_BYTE_PTR)(data_ptr++));
-    DBG("curve point size: %1d\n", curve_point_len);
-    // The curve point should always be 65 bytes for P256 and 97 bytes for P384
-    if (
-	   (curve_point_len != 65  && is_p384 != CK_TRUE)
-	&& (curve_point_len != 97 && is_p384 == CK_TRUE)
-	)
-      {
-	DBG("curve point size *data_ptr=%1d -> not 65 \n", curve_point_len);
-	//goto create_empty_cert_cleanup;
-      }
-    
-    if (EC_POINT_oct2point(ecg, ecp, data_ptr, curve_point_len, NULL) == 0) {
-      DBG("EC_POINT_oct2point() failed...");
+    int curve_name = get_curve_name(key_algorithm);
+
+    ecg = EC_GROUP_new_by_curve_name(curve_name);
+    if (ecg == NULL)
       goto create_empty_cert_cleanup;
-    }
+
+    EC_GROUP_set_asn1_flag(ecg, curve_name);
+    EC_KEY_set_group(eck, ecg);
+    ecp = EC_POINT_new(ecg);
+
+    if(*data_ptr++ != 0x86)
+      goto create_empty_cert_cleanup;
+
+    data_ptr += get_length(data_ptr, &len);
+    if (EC_POINT_oct2point(ecg, ecp, data_ptr, len, NULL) == 0)
+      goto create_empty_cert_cleanup;
 
     if (EC_KEY_set_public_key(eck, ecp) == 0) {
       DBG("EC_KEY_set_public_key() failed...");
       goto create_empty_cert_cleanup;
     }
-
+    
     // OpenSSL 1.1 doesn't allow to set empty signatures
     // Use a bogus private key
-    bignum_prv = BN_bin2bn(zeroes, 65, NULL);
-    if (bignum_prv == NULL) {
-      DBG("bignum_prv is NULL");
+    bignum_prv = BN_bin2bn(zeroes, len, NULL);
+    if (bignum_prv == NULL)
       goto create_empty_cert_cleanup;
-    }
+    
 
     if (EC_KEY_set_private_key(eck, bignum_prv) == 0) {
       DBG("EC_KEY_set_private_key() failed");
