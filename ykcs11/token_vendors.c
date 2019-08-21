@@ -156,16 +156,6 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
 
     break;
 
-  case 384:
-    //DBG("Setting algorithm to YKPIV_ALGO_ECCP384");
-    if (rsa == CK_FALSE) {
-      is_p384 = CK_TRUE;
-      *in_ptr++ = YKPIV_ALGO_ECCP384;
-    } else {
-      return CKR_FUNCTION_FAILED;
-    }
-    break;
-
   default:
     return CKR_FUNCTION_FAILED;
   }
