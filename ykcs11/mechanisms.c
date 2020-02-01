@@ -666,18 +666,9 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_KEY_TYPE:
-#if 0
-      if ((op_info->op.gen.rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (op_info->op.gen.rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA)) {
-        fprintf(stderr, "Wrong key type gen.rsa=%s pValue=%lu\n",
-                ((char *)(op_info->op.gen.rsa == CK_TRUE? "True" : "False")),
-                (*((CK_KEY_TYPE *)templ[i].pValue)));
-#else
       if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
           (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
-#endif
         return CKR_TEMPLATE_INCONSISTENT;
-      }
 
       break;
 
@@ -723,7 +714,6 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
     case CKA_ID:
       if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ)
         return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
 
       gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
