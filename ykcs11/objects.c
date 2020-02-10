@@ -30,7 +30,7 @@
 
 #include "obj_types.h"
 #include "objects.h"
-#include <ykpiv.h>
+#include "ykpiv.h"
 #include <string.h>
 #include <stdlib.h>
 #include "openssl_utils.h"
@@ -1365,6 +1365,13 @@ CK_BBOOL is_present(ykcs11_slot_t *s, piv_obj_id_t id) {
 
 CK_BBOOL add_object(ykcs11_slot_t *s, piv_obj_id_t id) {
   if(s->n_objects < sizeof(s->objects) / sizeof(s->objects[0])) {
+    // We can't use is_present here because the objects might not be sorted
+    for(CK_ULONG i = 0; i < s->n_objects; i++) {
+      if(id == s->objects[i]) {
+        DBG("Couldn't add object %u because it is already present", id);
+        return false;
+      }
+    }
     s->objects[s->n_objects++] = id;
     DBG("Added object %u, slot contains %lu objects", id, s->n_objects);
     return true;
@@ -1374,7 +1381,7 @@ CK_BBOOL add_object(ykcs11_slot_t *s, piv_obj_id_t id) {
 }
 
 CK_BBOOL is_local_key(ykcs11_slot_t *s, piv_obj_id_t id) {
-  return is_present(s, find_atst_object(piv_objects[id].sub_id));
+  return s->local[piv_objects[id].sub_id];
 }
 
 CK_RV get_attribute(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
