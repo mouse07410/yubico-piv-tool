@@ -176,68 +176,6 @@ CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int curve_name, yk
   return CKR_OK;
 }
 
-#if 0
-  DBG("in_len=%lu is_rsa=%s is_p384=%s\n", in_len,
-      ((char*)((is_rsa  == CK_TRUE)?  "True" : "False")),
-      ((char*)((is_p384 == CK_TRUE)? "True" : "False"))
-      );
-  
-  cert = X509_new();
-  if (cert == NULL)
-    goto create_empty_cert_cleanup;
-
-  key = EVP_PKEY_new();
-  if (key == NULL)
-    goto create_empty_cert_cleanup;
-
-  if (is_rsa == CK_TRUE) {
-    // RSA
-    DBG("Creating an empty RSA cert");
-    rsa = RSA_new();
-    if (rsa == NULL)
-      goto create_empty_cert_cleanup;
-
-    data_ptr = in + 5;
-    if (*data_ptr != 0x81)
-      goto create_empty_cert_cleanup;
-
-    data_ptr++;
-    data_ptr += get_length(data_ptr, &len);
-    bignum_n = BN_bin2bn(data_ptr, len, NULL);
-    if(bignum_n == NULL)
-      goto create_empty_cert_cleanup;
-
-    data_ptr += len;
-
-    if(*data_ptr != 0x82)
-      goto create_empty_cert_cleanup;
-
-    // OpenSSL 1.1 doesn't allow to set empty signatures
-    // Use a bogus private key
-    bignum_prv = BN_bin2bn(zeroes, len, NULL);
-    if (bignum_prv == NULL)
-      goto create_empty_cert_cleanup;
-
-    data_ptr++;
-    data_ptr += get_length(data_ptr, &len);
-    bignum_e = BN_bin2bn(data_ptr, len, NULL);
-    if(bignum_e == NULL)
-      goto create_empty_cert_cleanup;
-
-    if (RSA_set0_key(rsa, bignum_n, bignum_e, bignum_prv) == 0)
-      goto create_empty_cert_cleanup;
-
-    if (EVP_PKEY_set1_RSA(key, rsa) == 0)
-      goto create_empty_cert_cleanup;
-  }
-  else {
-    // ECCP256 and ECCP384
-    data_ptr = in + 3;
-    
-    eck = EC_KEY_new();
-    if (eck == NULL)
-      goto create_empty_cert_cleanup;
-#else
 CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_ULONG exp_len, ykcs11_pkey_t **pkey) {
   BIGNUM *n = BN_bin2bn(mod, mod_len, 0);
   if(n == NULL)
@@ -262,7 +200,6 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
   int curve_name = get_curve_name(algorithm);
   CK_BYTE_PTR eob = in + in_len;
   unsigned long len;
-#endif
 
   if (curve_name == 0) {
     if(in >= eob)
@@ -279,63 +216,6 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
     CK_BYTE_PTR mod = in;
     CK_ULONG mod_len = len;
 
-#if 0
-    if (EC_KEY_set_public_key(eck, ecp) == 0) {
-      DBG("EC_KEY_set_public_key() failed...");
-      goto create_empty_cert_cleanup;
-    }
-    
-    // OpenSSL 1.1 doesn't allow to set empty signatures
-    // Use a bogus private key
-    bignum_prv = BN_bin2bn(zeroes, len, NULL);
-    if (bignum_prv == NULL)
-      goto create_empty_cert_cleanup;
-    
-
-    if (EC_KEY_set_private_key(eck, bignum_prv) == 0) {
-      DBG("EC_KEY_set_private_key() failed");
-      goto create_empty_cert_cleanup;
-    }
-
-    if (EVP_PKEY_set1_EC_KEY(key, eck) == 0) {
-      DBG("EVP_PKEY_set1_EC_KEY() failed");
-      goto create_empty_cert_cleanup;
-    }
-  }
-
-  if (X509_set_pubkey(cert, key) == 0) // TODO: there is also X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey);
-    {
-      DBG("X509_set_pubkey() failed");
-      goto create_empty_cert_cleanup;
-    }
-
-  tm = ASN1_TIME_new();
-  if (tm == NULL) {
-    DBG("ASN1_TIME_new() returned NULL");
-    goto create_empty_cert_cleanup;
-  }
-  
-  ASN1_TIME_set_string(tm, "000001010000Z");
-  X509_set_notBefore(cert, tm);
-  X509_set_notAfter(cert, tm);
-
-  // Write a bogus signature to make a valid certificate
-  if (X509_sign(cert, key, EVP_sha1()) == 0) {
-    DBG("X509_sign() failed");
-    goto create_empty_cert_cleanup;
-  }
-
-  len = i2d_X509(cert, NULL);
-  if (len < 0) {
-    DBG("i2d_X509() returned %d\n", len);
-    goto create_empty_cert_cleanup;
-  }
-  
-  if ((CK_ULONG)len > *out_len) {
-    rv = CKR_BUFFER_TOO_SMALL;
-    DBG("Output buffer too small(need %d > have %lu)", len, *out_len);
-    goto create_empty_cert_cleanup;
-#else
     in += len;
 
     if(in >= eob)
@@ -370,17 +250,9 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
       return CKR_GENERAL_ERROR;
 
     return do_create_ec_key(in, len, curve_name, pkey);
-#endif
   }
 }
 
-#if 0
-  p = out;
-  if ((*out_len = (CK_ULONG) i2d_X509(cert, &p)) == 0) {
-    DBG("i2d_X509() returned zero");
-    goto create_empty_cert_cleanup;
-  }
-#else
 CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *pvtkey, ykcs11_x509_t **cert) {
   *cert = X509_new();
   if (*cert == NULL)
@@ -396,7 +268,6 @@ CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *p
     return CKR_GENERAL_ERROR;
   return CKR_OK;
 }
-#endif
 
 CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
                           const char *cn, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {

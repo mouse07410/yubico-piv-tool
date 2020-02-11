@@ -41,28 +41,6 @@
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
 #define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22"
 
-#if 0
-// Supported mechanisms for signature
-static const CK_MECHANISM_TYPE sign_mechanisms[] = {
-  CKM_RSA_PKCS,
-  CKM_RSA_PKCS_PSS,
-  CKM_RSA_X_509,
-  CKM_SHA1_RSA_PKCS,
-  CKM_SHA256_RSA_PKCS,
-  CKM_SHA384_RSA_PKCS,
-  CKM_SHA512_RSA_PKCS,
-  CKM_SHA1_RSA_PKCS_PSS,
-  CKM_SHA256_RSA_PKCS_PSS,
-  CKM_SHA384_RSA_PKCS_PSS,
-  CKM_SHA512_RSA_PKCS_PSS,
-  CKM_ECDSA,
-  CKM_ECDSA_SHA1,
-  CKM_ECDSA_SHA256,
-  CKM_ECDSA_SHA384,
-  CKM_ECDSA_SHA512
-};
-#endif
-
 // Supported mechanisms for key pair generation
 static const CK_MECHANISM_TYPE generation_mechanisms[] = {
   CKM_RSA_PKCS_KEY_PAIR_GEN,
@@ -105,38 +83,6 @@ static CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
 
 static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
   switch (m) {
-#if 0
-  case CKM_EC_KEY_PAIR_GEN:
-  case CKM_ECDSA:
-  case CKM_ECDSA_SHA1:
-  case CKM_ECDSA_SHA256:
-  case CKM_ECDSA_SHA384:
-  //case CKM_ECDSA_SHA512:
-    return CK_TRUE;
-  default:
-    return CK_FALSE;
-  }
-
-  // Not reached
-  return CK_FALSE;
-}
-
-CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m) {
-
-  switch (m) {
-  case CKM_SHA1_RSA_PKCS:
-  case CKM_SHA256_RSA_PKCS:
-  case CKM_SHA384_RSA_PKCS:
-  case CKM_SHA512_RSA_PKCS:
-  case CKM_SHA1_RSA_PKCS_PSS:
-  case CKM_SHA256_RSA_PKCS_PSS:
-  case CKM_SHA384_RSA_PKCS_PSS:
-  case CKM_SHA512_RSA_PKCS_PSS:
-  case CKM_ECDSA_SHA1:
-  case CKM_ECDSA_SHA256:
-  case CKM_ECDSA_SHA384:
-  case CKM_ECDSA_SHA512:
-#endif
   case CKM_SHA_1:
   case CKG_MGF1_SHA1:
     return EVP_sha1();
@@ -236,10 +182,6 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
     case CKM_SHA256_RSA_PKCS_PSS:
     case CKM_SHA384_RSA_PKCS_PSS:
     case CKM_SHA512_RSA_PKCS_PSS:
-#if 0
-    case CKM_ECDSA_SHA512:
-      return do_md_init(YKCS11_SHA512, &op_info->op.sign.md_ctx);
-#else
       if(!session->op_info.op.sign.rsa) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
@@ -266,7 +208,6 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
         return CKR_ARGUMENTS_BAD;
       }
       break;
-#endif
 
     default:
       if(session->op_info.op.sign.rsa) {
@@ -319,23 +260,6 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   CK_ULONG padlen = session->op_info.out_len;
   CK_BYTE buf[1024];
 
-#if 0
-  case CKM_SHA1_RSA_PKCS:
-  case CKM_SHA256_RSA_PKCS:
-  case CKM_SHA384_RSA_PKCS:
-  case CKM_SHA512_RSA_PKCS:
-  case CKM_SHA1_RSA_PKCS_PSS:
-  case CKM_SHA256_RSA_PKCS_PSS:
-  case CKM_SHA384_RSA_PKCS_PSS:
-  case CKM_SHA512_RSA_PKCS_PSS:
-  case CKM_ECDSA_SHA1:
-  case CKM_ECDSA_SHA256:
-  case CKM_ECDSA_SHA384:
-  case CKM_ECDSA_SHA512:
-    rv = do_md_update(op_info->op.sign.md_ctx, in, in_len);
-    if (rv != CKR_OK)
-      return CKR_FUNCTION_FAILED;
-#else
   // Apply padding
   switch(session->op_info.op.sign.padding) {
     case RSA_PKCS1_PADDING:
@@ -364,7 +288,6 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
       session->op_info.buf_len = padlen;
       break;
   }
-#endif
 
   // Sign with PIV
   unsigned char sigbuf[256];
@@ -544,25 +467,9 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
     }
   }
 
-#if 0
-    // Compute padding for all PKCS1 variants
-    len = op_info->buf_len;
-    op_info->buf_len = sizeof(op_info->buf);
-    return do_pkcs_1_t1(op_info->buf, len, op_info->buf, &op_info->buf_len, op_info->op.sign.key_len);
-
-  case CKM_ECDSA_SHA1:
-  case CKM_ECDSA_SHA256:
-  case CKM_ECDSA_SHA384:
-  case CKM_ECDSA_SHA512:
-    // Finalize the hash
-    rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
-    op_info->op.sign.md_ctx = NULL;
-    if (rv != CKR_OK)
-#else
   if (session->op_info.op.verify.padding) {
     if (EVP_PKEY_CTX_set_rsa_padding(session->op_info.op.verify.pkey_ctx, session->op_info.op.verify.padding) <= 0) {
       DBG("EVP_PKEY_CTX_set_rsa_padding failed");
-#endif
       return CKR_FUNCTION_FAILED;
     }
     if (pss) {
@@ -737,7 +644,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     default:
-      DBG("Invalid attribute 0x%lx in public key template", templ[i].type);
+      DBG("Invalid attribute %lx in public key template", templ[i].type);
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
   }

@@ -1416,13 +1416,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     DBG("Certificate id is %u", id);
 
-#if 0
-    // ULB: make sure this offset by 1 is OK. Maybe remove it?
-    object = PIV_CERT_OBJ_X509_PIV_AUTH + id - 1;
-    if (object > 1000) object = 0;
-		     
-    rv = token.token_import_cert(piv_state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
-#endif
     dobj_id = find_data_object(id);
     cert_id = find_cert_object(id);
     pubk_id = find_pubk_object(id);
@@ -1484,7 +1477,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     rv = check_create_ec_key(pTemplate, ulCount, &id, &ec_data, &ec_data_len);
     if (rv != CKR_OK) {
       // Try to parse the key as RSA
-      DBG("Private key template was not EC, trying RSA...");
       is_rsa = CK_TRUE;
       rv = check_create_rsa_key(pTemplate, ulCount, &id,
                                 &p, &p_len,
@@ -1500,11 +1492,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     DBG("Key id is %u", id);
 
-#if 0
-    // ULB: Make sure this offset by 1 is OK.
-    object = PIV_PVTK_OBJ_PIV_AUTH + id -1;
-    if (object > 1000) object = 0;
-#else
     pvtk_id = find_pvtk_object(id);
 
     locking.pfnLockMutex(session->slot->mutex);
@@ -1515,7 +1502,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       rv = CKR_USER_TYPE_INVALID;
       goto create_out;
     }
-#endif
 
     if (is_rsa == CK_TRUE) {
       DBG("Key is RSA");
@@ -1534,7 +1520,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     else {
       DBG("Key is ECDSA");
-      DBG("Key is ECDSA, ec_data_len=%lu\n", ec_data_len);
       rv = token_import_private_key(session->slot->piv_state, piv_2_ykpiv(pvtk_id),
                                           NULL, 0,
                                           NULL, 0,
@@ -1633,13 +1618,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   // Remove the related objects from the session
 
-#if 0
-  cert_id = PIV_CERT_OBJ_X509_PIV_AUTH + id -1; // TODO: make function for these
-  pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id -1;
-  pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id -1;
-#else
   DBG("%lu session objects before destroying object %lu", session->slot->n_objects, hObject);
-#endif
 
   CK_ULONG j = 0;
   for (CK_ULONG i = 0; i < session->slot->n_objects; i++) {
@@ -3431,10 +3410,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     goto genkp_out;
   }
 
-  DBG("Trying to generate a key pair with mechanism 0x%lx", pMechanism->mechanism);
+  DBG("Trying to generate a key pair with mechanism %lx", pMechanism->mechanism);
 
-  DBG("Found %lu attributes for the public key and %lu attributes for the private key",
-      ulPublicKeyAttributeCount, ulPrivateKeyAttributeCount);
+  DBG("Found %lu attributes for the public key and %lu attributes for the private key", ulPublicKeyAttributeCount, ulPrivateKeyAttributeCount);
 
   // Check if mechanism is supported
   if ((rv = check_generation_mechanism(pMechanism)) != CKR_OK) {
@@ -3464,63 +3442,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   if (gen.key_id == 0) {
     DBG("Key id not specified");
-#if 0
-    return CKR_TEMPLATE_INCOMPLETE;
-  }
-
-  if (op_info.op.gen.rsa) {
-    DBG("Generating %lu bit RSA key in object %u", op_info.op.gen.key_len, op_info.op.gen.key_id);
-  }
-  else {
-    DBG("Generating %lu bit EC key in object %u", op_info.op.gen.key_len, op_info.op.gen.key_id);
-  }
-
-  token = get_token_vendor(session.slot->token->vid);
-
-  DBG("IMPORTANT! op_info.op.gen.key_id = %02u\n", op_info.op.gen.key_id);
-
-  if (op_info.op.gen.key_id > 0)
-    op_info.op.gen.key_id -= 1; // ULB hack to bring key id back in line
-  
-  if ((rv = token.token_generate_key(piv_state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len, op_info.op.gen.vendor_defined)) != CKR_OK) {
-    DBG("Unable to generate key pair (rv=%lu)", rv);
-    return rv;
-  }
-
-  is_new = CK_TRUE;
-  for (i = 0; i < session.slot->token->n_objects; i++) {
-    if (session.slot->token->objects[i] == op_info.op.gen.key_id)
-      is_new = CK_FALSE;
-  }
-
-  DBG("IMPORTANT2! op_info.op.gen.key_id = %02u\n", op_info.op.gen.key_id);
-
-  dobj_id = op_info.op.gen.key_id - PIV_PVTK_OBJ_PIV_AUTH; // TODO: make function for these
-  cert_id = PIV_DATA_OBJ_LAST + 1 + dobj_id;
-  pvtk_id = op_info.op.gen.key_id;
-  pubk_id = PIV_PVTK_OBJ_LAST + 1 + dobj_id;
-
-  DBG("IMPORTANT3!\tPIV_DATA_OBJ=%02d\tPIV_DATA_OBJ_LAST=%02d\n",
-      PIV_DATA_OBJ_X509_PIV_AUTH, PIV_DATA_OBJ_LAST);
-  DBG("IMPORTANT3!\tPIV_CERT_OBJ=%02d\tPIV_CERT_OBJ_LAST=%02d\n",
-      PIV_CERT_OBJ_X509_PIV_AUTH, PIV_CERT_OBJ_LAST);
-  DBG("IMPORTANT3!\tPIV_PVTK_OBJ=%02d\tPIV_PVTK_OBJ_LAST=%02d\n",
-      PIV_PVTK_OBJ_PIV_AUTH, PIV_PVTK_OBJ_LAST);
-  DBG("IMPORTANT3!\tPIV_PUBK_OBJ=%02d\tPIV_PUBK_OBJ_LAST=%02d\n",
-      PIV_PUBK_OBJ_PIV_AUTH, PIV_PUBK_OBJ_LAST);
-  
-  DBG("IMPORTANT4! Adjusted dobj_id=%02lu cert_id=%02lu pvtk_id=%02lu pubk_id=%02lu\n",
-      (dobj_id - PIV_DATA_OBJ_X509_PIV_AUTH),
-      (cert_id - PIV_CERT_OBJ_X509_PIV_AUTH),
-      (pvtk_id - PIV_PVTK_OBJ_PIV_AUTH),
-      (pubk_id - PIV_PUBK_OBJ_PIV_AUTH)
-      );
-
-  
-  // Check whether we created a new object or updated an existing one
-  if (is_new == CK_TRUE) {
-    // New object created, add it to the object list
-#else
     rv = CKR_TEMPLATE_INCOMPLETE;
     goto genkp_out;
   }
@@ -3532,7 +3453,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   atst_id = find_atst_object(gen.key_id);
 
   CK_ULONG slot = piv_2_ykpiv(pvtk_id);
-#endif
 
   DBG("Generating key with algorithm %u in object %u and %u in slot %lx", gen.algorithm, pvtk_id, pubk_id, slot);
 

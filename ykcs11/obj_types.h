@@ -35,11 +35,7 @@
 
 // TODO: this is mostly from OpenSC, how to give credit?
 typedef enum {
-#if 0
-  PIV_DATA_OBJ_X509_PIV_AUTH = 1, // PIV authentication
-#else
   PIV_DATA_OBJ_X509_PIV_AUTH,     // PIV authentication
-#endif
   PIV_DATA_OBJ_X509_DS,           // Digital signature
   PIV_DATA_OBJ_X509_KM,           // Key management
   PIV_DATA_OBJ_X509_CARD_AUTH,    // Card authentication
