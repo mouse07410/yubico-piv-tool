@@ -63,6 +63,8 @@
 
 #define KEY_LEN 24
 
+#define YKPIV_ATTESTATION_OID "1.3.6.1.4.1.41482.3"
+
 static enum file_mode key_file_mode(enum enum_key_format fmt, bool output) {
   if (fmt == key_format_arg_PEM) {
     if (output) {
@@ -557,6 +559,10 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
       fprintf(stderr, "Failed checking input GZIP file.\n");
       goto import_cert_out;
     }
+    if (st.st_size > INT_MAX) {
+      fprintf(stderr, "Size of certificate file too large.\n");
+      goto import_cert_out;
+    }
     cert_len = st.st_size;
     compress = 0x01;
   } else {
@@ -573,7 +579,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     unsigned char *certptr = certdata;
     ykpiv_rc res;
 
-    if(cert_len > YKPIV_OBJ_MAX_SIZE) {
+    if(cert_len > YKPIV_OBJ_MAX_SIZE || cert_len < 0) {
       fprintf(stderr, "Length of certificate is more than can fit.\n");
       goto import_cert_out;
     }
@@ -634,9 +640,36 @@ static bool set_cardid(ykpiv_state *state, int verbose, int type) {
   return res == YKPIV_OK;
 }
 
+static int add_ext(STACK_OF(X509_EXTENSION) *exts, const char *oid, const char *name, const char *descr, const unsigned char *data, int len) {
+  int nid = OBJ_create(oid, name, descr);
+  if(nid <= 0) {
+    fprintf(stderr, "Failed creating %s extension object.\n", name);
+    return 0;
+  }
+  ASN1_OCTET_STRING *octets = ASN1_OCTET_STRING_new();
+  if(!octets) {
+    fprintf(stderr, "Failed allocating octets for %s extension.\n", name);
+    return 0;
+  }
+  if(!ASN1_OCTET_STRING_set(octets, data, len)) {
+    fprintf(stderr, "Failed setting octets for %s extension.\n", name);
+    return 0;
+  }
+  X509_EXTENSION *ext = X509_EXTENSION_create_by_NID(NULL, nid, 0, octets);
+  if(!ext) {
+    fprintf(stderr, "Failed creating %s extension.\n", name);
+    return 0;
+  }
+  if(!sk_X509_EXTENSION_push(exts, ext)) {
+    fprintf(stderr, "Failed pushing %s extension.\n", name);
+    return 0;
+  }
+  return 1;
+}
+
 static bool request_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, enum enum_slot slot, char *subject, enum enum_hash hash,
-    const char *output_file_name) {
+    const char *output_file_name, int attestation) {
   X509_REQ *req = NULL;
   X509_NAME *name = NULL;
   FILE *input_file = NULL;
@@ -666,20 +699,69 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  if(isatty(fileno(input_file))) {
-    fprintf(stderr, "Please paste the public key...\n");
+  req = X509_REQ_new();
+  if(!req) {
+    fprintf(stderr, "Failed to allocate request structure.\n");
+    goto request_out;
   }
 
-  if(key_format == key_format_arg_PEM) {
-    public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
-    if(!public_key) {
-      fprintf(stderr, "Failed loading public key for request.\n");
+  if(attestation) {
+    unsigned char buf[YKPIV_OBJ_MAX_SIZE];
+    size_t buflen = sizeof(buf);
+    ykpiv_rc rc;
+
+    if((rc = ykpiv_attest(state, key, buf, &buflen)) == YKPIV_OK) {
+      STACK_OF(X509_EXTENSION) *exts = sk_X509_EXTENSION_new_null();
+      add_ext(exts, YKPIV_ATTESTATION_OID ".11", "ykpiv attestation", "Yubico PIV X.509 Attestation", buf, buflen);
+
+      unsigned char *pb = 0;
+      size_t pblen = 0;
+      if((rc = ykpiv_util_read_cert(state, YKPIV_KEY_ATTESTATION, &pb, &pblen)) == YKPIV_OK && pblen > 0) {
+        add_ext(exts, YKPIV_ATTESTATION_OID ".2", "ykpiv attest cert", "Yubico PIV Attestation Certificate", pb, pblen);
+        ykpiv_util_free(state, pb);
+      } else {
+        fprintf(stderr, "Failed reading attestation certificate: %s.\n", ykpiv_strerror(rc));        
+      }
+
+      if(!X509_REQ_add_extensions(req, exts)) {
+        fprintf(stderr, "Failed setting the request extensions.\n");
+        sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+        goto request_out;
+      }
+      sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+
+      // Extract the public key for the request from the attestation
+      const unsigned char *ptr = buf;
+      X509 *x509 = d2i_X509(NULL, &ptr, buflen);
+      if(x509) {
+        public_key = X509_get_pubkey(x509);
+        X509_free(x509);
+      }
+      if(!public_key) {
+        fprintf(stderr, "Failed extracting public key for request from attestation.\n");
+        goto request_out;
+      }
+    } else {
+      fprintf(stderr, "Failed creating attestation: %s.\n", ykpiv_strerror(rc));
       goto request_out;
     }
   } else {
-    fprintf(stderr, "Only PEM supported for public key input.\n");
-    goto request_out;
+    if(isatty(fileno(input_file))) {
+      fprintf(stderr, "Please paste the public key...\n");
+    }
+
+    if(key_format == key_format_arg_PEM) {
+      public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
+      if(!public_key) {
+        fprintf(stderr, "Failed loading public key for request.\n");
+        goto request_out;
+      }
+    } else {
+      fprintf(stderr, "Only PEM supported for public key input.\n");
+      goto request_out;
+    }
   }
+
   algorithm = get_algorithm(public_key);
   if(algorithm == 0) {
     goto request_out;
@@ -690,11 +772,6 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  req = X509_REQ_new();
-  if(!req) {
-    fprintf(stderr, "Failed to allocate request structure.\n");
-    goto request_out;
-  }
   if(!X509_REQ_set_pubkey(req, public_key)) {
     fprintf(stderr, "Failed setting the request public key.\n");
     goto request_out;
@@ -2153,7 +2230,7 @@ int main(int argc, char *argv[]) {
       case action_arg_requestMINUS_certificate:
         if(request_certificate(state, args_info.key_format_arg, args_info.input_arg,
               args_info.slot_arg, args_info.subject_arg, args_info.hash_arg,
-              args_info.output_arg) == false) {
+              args_info.output_arg, args_info.attestation_flag) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully generated a certificate request.\n");

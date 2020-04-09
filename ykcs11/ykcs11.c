@@ -47,10 +47,6 @@
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
 
-#define PIV_MIN_PIN_LEN 6
-#define PIV_MAX_PIN_LEN 8
-#define PIV_MGM_KEY_LEN 48
-
 #define YKCS11_MAX_SLOTS       16
 #define YKCS11_MAX_SESSIONS    16
 
@@ -62,6 +58,7 @@ static ykcs11_session_t sessions[YKCS11_MAX_SESSIONS];
 static CK_C_INITIALIZE_ARGS locking;
 static void *global_mutex;
 static uint64_t pid;
+int verbose;
 
 static CK_FUNCTION_LIST function_list;
 
@@ -111,6 +108,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
   CK_VOID_PTR pInitArgs
 )
 {
+#if YKCS11_DBG
+  verbose = YKCS11_DBG;
+#else
+  const char *dbg = getenv("YKCS11_DBG");
+  verbose = dbg ? atoi(dbg) : 0;
+#endif
+
   DIN;
   CK_RV rv;
 
@@ -323,7 +327,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   }
 
   ykpiv_state *piv_state;
-  if (ykpiv_init(&piv_state, YKCS11_DBG) != YKPIV_OK) {
+  if (ykpiv_init(&piv_state, verbose) != YKPIV_OK) {
     DBG("Unable to initialize libykpiv");
     rv = CKR_FUNCTION_FAILED;
     goto slotlist_out;
@@ -376,7 +380,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       if(slot == slots + n_slots) {
         DBG("Initializing slot %lu for '%s'", slot-slots, reader);
         ykpiv_rc rc;
-        if((rc = ykpiv_init(&slot->piv_state, YKCS11_DBG)) != YKPIV_OK) {
+        if((rc = ykpiv_init(&slot->piv_state, verbose)) != YKPIV_OK) {
           DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
           locking.pfnUnlockMutex(global_mutex);
           rv = CKR_FUNCTION_FAILED;
@@ -396,8 +400,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->slot_info.flags |= CKF_TOKEN_PRESENT;
         slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
 
-        slot->token_info.ulMinPinLen = PIV_MIN_PIN_LEN;
-        slot->token_info.ulMaxPinLen = PIV_MGM_KEY_LEN;
+        slot->token_info.ulMinPinLen = YKPIV_MIN_PIN_LEN;
+        slot->token_info.ulMaxPinLen = YKPIV_MGM_KEY_LEN;
 
         slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
         slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
@@ -536,6 +540,23 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   }
 
   memcpy(pInfo, &slots[slotID].token_info, sizeof(CK_TOKEN_INFO));
+
+  int tries = YKPIV_RETRIES_MAX;
+  ykpiv_get_pin_retries(slots[slotID].piv_state, &tries);
+
+  switch(tries) {
+    case 0:
+      pInfo->flags |= CKF_USER_PIN_LOCKED;
+      break;
+    case 1:
+      pInfo->flags |= CKF_USER_PIN_FINAL_TRY;
+      break;
+    case 2:
+      pInfo->flags |= CKF_USER_PIN_COUNT_LOW;
+      break;
+    default:
+      break;
+  }
 
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     if(sessions[i].slot) {
@@ -1195,7 +1216,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     goto login_out;
   }
 
-  DBG("user %lu, pin %s, pinlen %lu", userType, pPin, ulPinLen);
+  DBG("userType %lu, pinLen %lu", userType, ulPinLen);
 
   ykcs11_session_t* session = get_session(hSession);
 
@@ -1214,11 +1235,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     }
     // Fall through
   case CKU_USER:
-    if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN) {
-      rv = CKR_ARGUMENTS_BAD;
-      goto login_out;
-    }
-
     locking.pfnLockMutex(session->slot->mutex);
 
     // We allow multiple logins for CKU_CONTEXT_SPECIFIC (we allow it regardless of CKA_ALWAYS_AUTHENTICATE because it's based on hardcoded tables and might be wrong)
@@ -1251,11 +1267,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     break;
 
   case CKU_SO:
-    if (ulPinLen != PIV_MGM_KEY_LEN) {
-      rv = CKR_ARGUMENTS_BAD;
-      goto login_out;
-    }
-
     locking.pfnLockMutex(session->slot->mutex);
 
     if (session->slot->login_state == YKCS11_USER) {
