@@ -96,7 +96,7 @@ void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps) 
         *ps = sig->s;
 }
 
-#if (LIBRESSL_VERSION_NUMBER < 0x27000000L)
+#if (LIBRESSL_VERSION_NUMBER < 0x2070500fL)
 
 RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey) {
   if (pkey->type != EVP_PKEY_RSA) {
@@ -190,14 +190,10 @@ static inline int constant_time_select_int(unsigned int mask, int a, int b)
     return (int)(constant_time_select(mask, (unsigned)(a), (unsigned)(b)));
 }
 
-static void err_clear_last_constant_time(int clear) {
+static inline void err_clear_last_constant_time(int clear) {
 }
 
-static void explicit_bzero(void *p, size_t s) {
-    memset(p, 0, s);
-} 
-
-static void freezero(void *p, size_t s) {
+static inline void freezero(void *p, size_t s) {
     memset(p, 0, s);
     free(p);
 }
@@ -228,7 +224,7 @@ static int timingsafe_memcmp(const void *b1, const void *b2, size_t len)
     return (res);
 }
 
-static void RSAerror(int err) {
+static inline void RSAerror(int err) {
 }
 
 int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
@@ -270,7 +266,7 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 	memset(db + mdlen, 0, emlen - flen - 2 * mdlen - 1);
 	db[emlen - flen - mdlen - 1] = 0x01;
 	memcpy(db + emlen - flen - mdlen, from, flen);
-	arc4random_buf(seed, mdlen);
+	RAND_bytes(seed, mdlen);
 
 	dbmask_len = emlen - mdlen;
 	if ((dbmask = malloc(dbmask_len)) == NULL) {
@@ -290,7 +286,7 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 	rv = 1;
 
  err:
-	explicit_bzero(seedmask, sizeof(seedmask));
+	memset(seedmask, 0, sizeof(seedmask));
 	freezero(dbmask, dbmask_len);
 
 	return rv;
@@ -438,7 +434,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 	err_clear_last_constant_time(1 & good);
 
  cleanup:
-	explicit_bzero(seed, sizeof(seed));
+	memset(seed, 0, sizeof(seed));
 	freezero(db, dblen);
 	freezero(em, num);
 
