@@ -73,6 +73,7 @@ endif(BUILD_STATIC_LIB)
 add_library(ykcs11_shared SHARED ${SOURCE})
 target_link_libraries(ykcs11_shared ${LIBCRYPTO_LDFLAGS} ykpiv_shared)
 set_target_properties(ykcs11_shared PROPERTIES SOVERSION ${SO_VERSION} VERSION ${VERSION})
+set_target_properties(ykcs11_shared PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
 if(WIN32)
     set_target_properties(ykcs11_shared PROPERTIES OUTPUT_NAME libykcs11)
 else(WIN32)
@@ -83,7 +84,6 @@ add_coverage(ykcs11_shared)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc.in ${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc @ONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h @ONLY)
 
-set_target_properties(ykcs11 PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
 install(
         TARGETS ykcs11_shared
         ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
