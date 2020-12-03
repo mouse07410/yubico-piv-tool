@@ -237,7 +237,7 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 	int i, emlen = tlen - 1;
 	unsigned char *db, *seed;
 	unsigned char *dbmask = NULL;
-	unsigned char seedmask[EVP_MAX_MD_SIZE];
+	unsigned char seedmask[EVP_MAX_MD_SIZE] = {0};
 	int mdlen, dbmask_len = 0;
 	int rv = 0;
 
@@ -269,7 +269,9 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 	memset(db + mdlen, 0, emlen - flen - 2 * mdlen - 1);
 	db[emlen - flen - mdlen - 1] = 0x01;
 	memcpy(db + emlen - flen - mdlen, from, flen);
-	RAND_bytes(seed, mdlen);
+	if(RAND_bytes(seed, mdlen) <= 0) {
+		goto err;
+	}
 
 	dbmask_len = emlen - mdlen;
 	if ((dbmask = malloc(dbmask_len)) == NULL) {
@@ -302,7 +304,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 	int i, dblen = 0, mlen = -1, one_index = 0, msg_index;
 	unsigned int good = 0, found_one_byte, mask;
 	const unsigned char *maskedseed, *maskeddb;
-	unsigned char seed[EVP_MAX_MD_SIZE], phash[EVP_MAX_MD_SIZE];
+	unsigned char seed[EVP_MAX_MD_SIZE]={0}, phash[EVP_MAX_MD_SIZE]={0};
 	unsigned char *db = NULL, *em = NULL;
 	int mdlen;
 

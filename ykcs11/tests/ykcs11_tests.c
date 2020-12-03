@@ -387,11 +387,11 @@ static void test_login() {
 static void test_login_order() {
   dprintf(0, "TEST START: test_login_order()\n");
   CK_BYTE     params[] = {0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
-  CK_BYTE     data[32];
-  CK_BYTE     sig[128];
+  CK_BYTE     data[32] = {0};
+  CK_BYTE     sig[128] = {0};
   CK_BYTE     i;
   CK_ULONG    recv_len = sizeof(sig);
-  CK_OBJECT_HANDLE privkey[2], pubkey[2];
+  CK_OBJECT_HANDLE privkey[2]={0}, pubkey[2]={0};
   CK_SESSION_HANDLE session1, session2;
 
   CK_MECHANISM sign_mech = {CKM_ECDSA, NULL, 0};
@@ -417,7 +417,7 @@ static void test_login_order() {
 }
 
 static void test_generate_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, int curve, CK_BYTE n_keys) {
-  CK_OBJECT_HANDLE obj_pvtkey[N_ALL_KEYS], obj_pubkey[N_ALL_KEYS];
+  CK_OBJECT_HANDLE obj_pvtkey[N_ALL_KEYS]={0}, obj_pubkey[N_ALL_KEYS]={0};
   CK_SESSION_HANDLE session;
 
   init_connection();
@@ -454,7 +454,7 @@ static void test_generate_eccp384() {
 
 static void test_sign_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_ULONG key_len, int curve) {
   EC_KEY      *eck;
-  CK_OBJECT_HANDLE obj_pvtkey[N_SELECTED_KEYS], obj_cert[N_SELECTED_KEYS];
+  CK_OBJECT_HANDLE obj_pvtkey[N_SELECTED_KEYS]={0}, obj_cert[N_SELECTED_KEYS]={0};
   CK_SESSION_HANDLE session;
 
   init_connection();
@@ -493,7 +493,7 @@ static void test_sign_eccp384() {
 }
 
 static void test_generate_rsa(CK_ULONG key_size, CK_BYTE n_keys) {
-  CK_OBJECT_HANDLE obj_pvtkey[N_ALL_KEYS], obj_pubkey[N_ALL_KEYS];
+  CK_OBJECT_HANDLE obj_pvtkey[N_ALL_KEYS]={0}, obj_pubkey[N_ALL_KEYS]={0};
   CK_SESSION_HANDLE session;
 
   init_connection();
@@ -531,18 +531,18 @@ static void test_key_attributes() {
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
   generate_ec_keys(funcs, session, 1, params_eccp256, sizeof(params_eccp256), &pubkey, &privkey);
-  test_pubkey_attributes_ec(funcs, session, pubkey, 256, "Public key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256), is_neo);
-  test_privkey_attributes_ec(funcs, session, privkey, 256, "Private key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256), CK_FALSE, is_neo);
+  test_pubkey_attributes_ec(funcs, session, pubkey, 256, "Public key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256));
+  test_privkey_attributes_ec(funcs, session, privkey, 256, "Private key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256), CK_FALSE);
   
   if(!is_neo) {
     generate_ec_keys(funcs, session, 1, params_eccp384, sizeof(params_eccp384), &pubkey, &privkey);
-    test_pubkey_attributes_ec(funcs, session, pubkey, 384, "Public key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384), 0);
-    test_privkey_attributes_ec(funcs, session, privkey, 384, "Private key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384), CK_FALSE, CK_FALSE);
+    test_pubkey_attributes_ec(funcs, session, pubkey, 384, "Public key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384));
+    test_privkey_attributes_ec(funcs, session, privkey, 384, "Private key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384), CK_FALSE);
   }
   
   generate_rsa_keys(funcs, session, 1024, 1, &pubkey, &privkey);
-  test_pubkey_attributes_rsa(funcs, session, pubkey, 1024, "Public key for PIV Authentication", 128, e, sizeof(e), is_neo);
-  test_privkey_attributes_rsa(funcs, session, privkey, 1024, "Private key for PIV Authentication", 128, e, sizeof(e), CK_FALSE, is_neo);
+  test_pubkey_attributes_rsa(funcs, session, pubkey, 1024, "Public key for PIV Authentication", 128, e, sizeof(e));
+  test_privkey_attributes_rsa(funcs, session, privkey, 1024, "Private key for PIV Authentication", 128, e, sizeof(e), CK_FALSE);
 
   destroy_test_objects(funcs, session, &privkey, 1);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
@@ -564,7 +564,7 @@ static void test_find_objects() {
 
   asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "LOGIN USER");
 
-  CK_OBJECT_HANDLE found_obj[10];
+  CK_OBJECT_HANDLE found_obj[10] = {0};
   CK_ULONG n_found_obj = 0;
   CK_ULONG object_class;
   CK_BYTE ckaid = 0;
@@ -634,7 +634,7 @@ static void test_find_objects() {
 }
 
 static CK_OBJECT_HANDLE get_public_key_handle(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE privkey) {
-  CK_OBJECT_HANDLE found_obj[10];
+  CK_OBJECT_HANDLE found_obj[10] = {0};
   CK_ULONG n_found_obj = 0;
   CK_ULONG class_pub = CKO_PUBLIC_KEY;
   CK_BYTE ckaid = 0;
@@ -657,7 +657,7 @@ static CK_OBJECT_HANDLE get_public_key_handle(CK_SESSION_HANDLE session, CK_OBJE
 
 static void test_import_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_ULONG key_len, int curve, CK_BYTE n_keys) {
   EC_KEY            *eck;
-  CK_OBJECT_HANDLE  obj_cert[N_ALL_KEYS], obj_pvtkey[N_ALL_KEYS];
+  CK_OBJECT_HANDLE  obj_cert[N_ALL_KEYS]={0}, obj_pvtkey[N_ALL_KEYS]={0};
   CK_SESSION_HANDLE session;
 
   init_connection();
@@ -698,7 +698,7 @@ static void test_import_eccp384() {
 static void test_import_rsa(CK_ULONG key_size, CK_BYTE n_keys) {
   EVP_PKEY    *evp = EVP_PKEY_new();
   RSA         *rsak = RSA_new();
-  CK_OBJECT_HANDLE obj_cert[N_ALL_KEYS], obj_pvtkey[N_ALL_KEYS];
+  CK_OBJECT_HANDLE obj_cert[N_ALL_KEYS]={0}, obj_pvtkey[N_ALL_KEYS]={0};
   CK_SESSION_HANDLE session;
 
   init_connection();
@@ -731,7 +731,7 @@ dprintf(0, "TEST END: test_import_rsakeys()\n");
 static void test_sign_rsa(CK_ULONG key_size) {
   EVP_PKEY    *evp = EVP_PKEY_new();
   RSA         *rsak = RSA_new();
-  CK_OBJECT_HANDLE obj_cert[N_SELECTED_KEYS], obj_pvtkey[N_SELECTED_KEYS];
+  CK_OBJECT_HANDLE obj_cert[N_SELECTED_KEYS]={0}, obj_pvtkey[N_SELECTED_KEYS]={0};
   CK_SESSION_HANDLE session;
 
   init_connection();
@@ -767,7 +767,7 @@ static void test_decrypt_RSA() {
   dprintf(0, "TEST START: test_decrypt_RSA()\n");
   EVP_PKEY    *evp = EVP_PKEY_new();
   RSA         *rsak = RSA_new();
-  CK_OBJECT_HANDLE obj_cert[N_SELECTED_KEYS], obj_pvtkey[N_SELECTED_KEYS];
+  CK_OBJECT_HANDLE obj_cert[N_SELECTED_KEYS]={0}, obj_pvtkey[N_SELECTED_KEYS]={0};
   CK_SESSION_HANDLE session;
 
   init_connection();
@@ -794,7 +794,7 @@ static void test_encrypt_RSA() {
   dprintf(0, "TEST START: test_encrypt_RSA()\n");
   EVP_PKEY    *evp = EVP_PKEY_new();
   RSA         *rsak = RSA_new();
-  CK_OBJECT_HANDLE obj_cert[N_SELECTED_KEYS], obj_pvtkey[N_SELECTED_KEYS];
+  CK_OBJECT_HANDLE obj_cert[N_SELECTED_KEYS]={0}, obj_pvtkey[N_SELECTED_KEYS]={0};
   CK_SESSION_HANDLE session;
 
   init_connection();
@@ -833,12 +833,11 @@ static void test_digest() {
 #endif
 
 int destruction_confirmed(void) {
-  char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
-  if (confirmed && confirmed[0] == '1')
-    return 1;
-  // Use dprintf() to write directly to stdout, since automake eats the standard stdout/stderr pointers.
-  dprintf(0, "\n***\n*** Hardware tests skipped.  Run \"make hwcheck\".\n***\n\n");
-  return 0;
+#ifdef _WIN32
+  return 1;
+#else
+  return system("../../../tools/confirm.sh") == 0;
+#endif
 }
 
 int main(void) {
@@ -850,8 +849,10 @@ int main(void) {
 #if HW_TESTS
   // Require user confirmation to continue, since this test suite will clear
   // any data stored on connected keys.
-  if (!destruction_confirmed())
+  if (!destruction_confirmed()) {
+    dprintf(0, "\n***\n*** Hardware tests skipped.\n***\n\n");
     exit(77); // exit code 77 == skipped tests
+  }
 
   test_initalize();
   // Require YK4, YK5 or NEO to continue.  Skip if different model found.

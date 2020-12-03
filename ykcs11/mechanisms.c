@@ -258,7 +258,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   }
 
   CK_ULONG padlen = session->op_info.out_len;
-  CK_BYTE buf[1024];
+  CK_BYTE buf[1024] = {0};
 
   // Apply padding
   switch(session->op_info.op.sign.padding) {
@@ -290,7 +290,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   }
 
   // Sign with PIV
-  unsigned char sigbuf[256];
+  unsigned char sigbuf[256] = {0};
   size_t siglen = sizeof(sigbuf);
   ykpiv_rc rcc = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, sigbuf, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
   if(rcc == YKPIV_OK) {
@@ -485,9 +485,18 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
         DBG("Mechanism %lu requires PSS parameters to specify hashAlg %s", session->op_info.mechanism, EVP_MD_name(md));
         return CKR_ARGUMENTS_BAD;
       }
-      EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->hashAlg));
-      EVP_PKEY_CTX_set_rsa_mgf1_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->mgf));
-      EVP_PKEY_CTX_set_rsa_pss_saltlen(session->op_info.op.verify.pkey_ctx, pss->sLen);
+      if(EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->hashAlg)) <= 0) {
+        DBG("Failed to set signature");
+        return CKR_FUNCTION_FAILED;
+      }
+      if(EVP_PKEY_CTX_set_rsa_mgf1_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->mgf)) <= 0) {
+        DBG("Failed to set PSS MGF type parameter");
+        return CKR_FUNCTION_FAILED;
+      }
+      if(EVP_PKEY_CTX_set_rsa_pss_saltlen(session->op_info.op.verify.pkey_ctx, pss->sLen) <= 0) {
+        DBG("Failed to set PSS salt length");
+        return CKR_FUNCTION_FAILED;
+      }
     }
   }
 
@@ -501,7 +510,7 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
 
   int rc;
 
-  CK_BYTE der[1024];
+  CK_BYTE der[1024] = {0};
   if(!session->op_info.op.verify.padding) {
     if(sig_len > sizeof(der)) {
       DBG("do_apply_DER_encoding_to_ECSIG failed because signature was too large (%lu)", sig_len);
@@ -891,7 +900,7 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_M
 
 CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_ULONG_PTR data_len, CK_ULONG key_len) {
   ykpiv_rc piv_rv;
-  CK_BYTE  dec[1024];
+  CK_BYTE  dec[1024] = {0};
   size_t   dec_len = sizeof(dec);
   int      cb_len;
 

@@ -113,7 +113,7 @@ unsigned char get_algorithm(EVP_PKEY *key) {
 }
 
 X509_NAME *parse_name(const char *orig_name) {
-  char name[1025];
+  char name[1025] = {0};
   X509_NAME *parsed = NULL;
   char *ptr = name;
   char *part;
@@ -166,7 +166,7 @@ parse_err:
 }
 
 size_t read_data(unsigned char *buf, size_t len, FILE* input, enum enum_format format) {
-  char raw_buf[YKPIV_OBJ_MAX_SIZE * 2 + 1];
+  char raw_buf[YKPIV_OBJ_MAX_SIZE * 2 + 1] = {0};
   size_t raw_len = fread(raw_buf, 1, sizeof(raw_buf), input);
   switch(format) {
     case format_arg_hex:
@@ -208,7 +208,7 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
   switch(format) {
     case format_arg_hex:
       {
-        char tmp[YKPIV_OBJ_MAX_SIZE * 3 + 1];
+        char tmp[YKPIV_OBJ_MAX_SIZE * 3 + 1] = {0};
         unsigned int i;
         unsigned int step = 2;
         if(space) step += 1;
@@ -226,7 +226,9 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
         BIO *b64 = BIO_new(BIO_f_base64());
         BIO *bio = BIO_new_fp(output, BIO_NOCLOSE);
         BIO_push(b64, bio);
-        BIO_write(b64, buf, (int)len);
+        if(BIO_write(b64, buf, (int)len) <= 0) {
+          fprintf(stderr, "Failed to write data in base64 format\n");
+        }
         BIO_flush(b64);
         BIO_free_all(b64);
       }
@@ -353,7 +355,7 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   X509_SIG *digestInfo;
   X509_ALGOR *algor;
   ASN1_OCTET_STRING *digest;
-  unsigned char data[1024];
+  unsigned char data[1024] = {0};
 
   if(in_len > sizeof(data))
     return false;
@@ -363,7 +365,11 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   digestInfo = X509_SIG_new();
   X509_SIG_getm(digestInfo, &algor, &digest);
   algor->algorithm = OBJ_nid2obj(nid);
-  X509_ALGOR_set0(algor, OBJ_nid2obj(nid), V_ASN1_NULL, NULL);
+  if(X509_ALGOR_set0(algor, OBJ_nid2obj(nid), V_ASN1_NULL, NULL) == 0) {
+    fprintf(stderr, "Failed to set X509 Algorithm\n");
+    X509_SIG_free(digestInfo);
+    return false;
+  }
   ASN1_STRING_set(digest, data, in_len);
   *out_len = (unsigned int)i2d_X509_SIG(digestInfo, &out);
   X509_SIG_free(digestInfo);
@@ -552,13 +558,16 @@ int SSH_write_X509(FILE *fp, X509 *x) {
   switch (EVP_PKEY_base_id(pkey)) {
   case EVP_PKEY_RSA: {
     RSA *rsa;
-    unsigned char n[256];
+    unsigned char n[256] = {0};
     const BIGNUM *bn_n;
 
     char rsa_id[] = "\x00\x00\x00\x07ssh-rsa";
     char rsa_f4[] = "\x00\x00\x00\x03\x01\x00\x01";
 
     rsa = EVP_PKEY_get1_RSA(pkey);
+    if(rsa == NULL) {
+      break;
+    }
     RSA_get0_key(rsa, &bn_n, NULL, NULL);
 
     if (!set_component(n, bn_n, RSA_size(rsa))) {
@@ -566,7 +575,7 @@ int SSH_write_X509(FILE *fp, X509 *x) {
     }
 
     uint32_t bytes = BN_num_bytes(bn_n);
-    char len_buf[5];
+    char len_buf[5] = {0};
     int len = 4;
 
     len_buf[0] = (bytes >> 24) & 0x000000ff;
@@ -589,10 +598,26 @@ int SSH_write_X509(FILE *fp, X509 *x) {
     BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
     BIO_push(b64, bio);
 
-    BIO_write(b64, rsa_id, sizeof(rsa_id) - 1);
-    BIO_write(b64, rsa_f4, sizeof(rsa_f4) - 1);
-    BIO_write(b64, len_buf, len);
-    BIO_write(b64, n, RSA_size(rsa));
+    if(BIO_write(b64, rsa_id, sizeof(rsa_id) - 1) <= 0 ) {
+      fprintf(stderr, "Failed to write RSA ID\n");
+      BIO_free_all(b64);
+      break;
+    }
+    if(BIO_write(b64, rsa_f4, sizeof(rsa_f4) - 1) <= 0) {
+      fprintf(stderr, "Failed to write RSA f4\n");
+      BIO_free_all(b64);
+      break;
+    }
+    if(BIO_write(b64, len_buf, len) <= 0) {
+      fprintf(stderr, "Failed to write RSA length\n");
+      BIO_free_all(b64);
+      break;
+    }
+    if(BIO_write(b64, n, RSA_size(rsa)) <= 0) {
+      fprintf(stderr, "Failed to write RSA n component\n");
+      BIO_free_all(b64);
+      break;
+    }
     BIO_flush(b64);
     BIO_free_all(b64);
 
