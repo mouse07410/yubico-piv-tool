@@ -112,11 +112,38 @@ unsigned char get_algorithm(EVP_PKEY *key) {
   }
 }
 
+char *string_parser(char *str_orig, char delimiter, char *str_found) {
+  char escape_char = '\\';
+  int f = 0;
+  char *p = str_orig;
+  while (*p == delimiter) {
+    p++;
+  }
+  for (; *p; p++) {
+    if (*p != delimiter) {
+      str_found[f++] = *p;
+    } else if (*p == delimiter) {
+      if ((*(p - 1) == escape_char &&
+           *(p - 2) == escape_char)) { // The escape_char before the delimiter is escaped => the delimiter is still in effect
+        str_found[f - 1] = '\0';
+        return ++p;
+      } else if (*(p - 1) == escape_char && *(p - 2) != escape_char) { // the delimiter is escaped
+        str_found[f - 1] = delimiter;
+      } else { // nothing is escaped
+        str_found[f] = '\0';
+        return ++p;
+      }
+    }
+  }
+  str_found[f] = '\0';
+  return NULL;
+}
+
 X509_NAME *parse_name(const char *orig_name) {
   char name[1025] = {0};
+  char part[1025] = {0};
   X509_NAME *parsed = NULL;
   char *ptr = name;
-  char *part;
 
   if(strlen(orig_name) > 1024) {
     fprintf(stderr, "Name is too long!\n");
@@ -124,8 +151,8 @@ X509_NAME *parse_name(const char *orig_name) {
   }
   strcpy(name, orig_name);
 
-  if(*name != '/') {
-    fprintf(stderr, "Name does not start with '/'!\n");
+  if(*name != '/' || name[strlen(name)-1] != '/') {
+    fprintf(stderr, "Name does not start or does not end with '/'!\n");
     return NULL;
   }
   parsed = X509_NAME_new();
@@ -133,7 +160,7 @@ X509_NAME *parse_name(const char *orig_name) {
     fprintf(stderr, "Failed to allocate memory\n");
     return NULL;
   }
-  while((part = strtok(ptr, "/"))) {
+  while((ptr = string_parser(ptr, '/', part))) {
     char *key;
     char *value;
     char *equals = strchr(part, '=');
@@ -145,7 +172,6 @@ X509_NAME *parse_name(const char *orig_name) {
     value = equals;
     key = part;
 
-    ptr = NULL;
     if(!key) {
       fprintf(stderr, "Malformed name (%s)\n", part);
       goto parse_err;

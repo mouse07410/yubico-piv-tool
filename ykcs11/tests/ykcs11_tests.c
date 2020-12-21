@@ -471,6 +471,7 @@ static void test_sign_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_ULON
     test_ec_sign_thorough(funcs, session, obj_pvtkey, CKM_ECDSA_SHA384, eck, key_len);
   }
 
+  EC_KEY_free(eck);
   destroy_test_objects(funcs, session, obj_pvtkey, N_SELECTED_KEYS);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -670,6 +671,7 @@ static void test_import_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_UL
   test_ec_sign_simple(funcs, session, obj_pvtkey, n_keys, eck, key_len);
   test_ec_ecdh_simple(funcs, session, obj_pvtkey, n_keys, curve);
 
+  EC_KEY_free(eck);
   destroy_test_objects(funcs, session, obj_cert, n_keys);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -704,12 +706,14 @@ static void test_import_rsa(CK_ULONG key_size, CK_BYTE n_keys) {
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
-  import_rsa_key(funcs, session, key_size, evp, rsak, n_keys, obj_cert, obj_pvtkey);
+  import_rsa_key(funcs, session, key_size, &evp, &rsak, n_keys, obj_cert, obj_pvtkey);
   if (evp == NULL || rsak == NULL)
     exit(EXIT_FAILURE);
 
   test_rsa_sign_simple(funcs, session, obj_pvtkey, n_keys, evp);
 
+  RSA_free(rsak);
+  EVP_PKEY_free(evp);
   destroy_test_objects(funcs, session, obj_cert, n_keys);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -737,7 +741,7 @@ static void test_sign_rsa(CK_ULONG key_size) {
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
-  import_rsa_key(funcs, session, key_size, evp, rsak, N_SELECTED_KEYS, obj_cert, obj_pvtkey);
+  import_rsa_key(funcs, session, key_size, &evp, &rsak, N_SELECTED_KEYS, obj_cert, obj_pvtkey);
   if (evp == NULL || rsak == NULL)
     exit(EXIT_FAILURE);
 
@@ -751,6 +755,8 @@ static void test_sign_rsa(CK_ULONG key_size) {
   test_rsa_sign_pss(funcs, session, obj_pvtkey, N_SELECTED_KEYS, rsak, CKM_SHA256_RSA_PKCS_PSS);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, N_SELECTED_KEYS, rsak, CKM_SHA384_RSA_PKCS_PSS);
 
+  RSA_free(rsak);
+  EVP_PKEY_free(evp);
   destroy_test_objects(funcs, session, obj_cert, N_SELECTED_KEYS);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -773,7 +779,7 @@ static void test_decrypt_RSA() {
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
-  import_rsa_key(funcs, session, 1024, evp, rsak, N_SELECTED_KEYS, obj_cert, obj_pvtkey);
+  import_rsa_key(funcs, session, 1024, &evp, &rsak, N_SELECTED_KEYS, obj_cert, obj_pvtkey);
   if (evp == NULL ||  rsak == NULL)
     exit(EXIT_FAILURE);
 
@@ -783,7 +789,9 @@ static void test_decrypt_RSA() {
 
   test_rsa_decrypt_oaep(funcs, session, obj_pvtkey, N_SELECTED_KEYS, CKM_SHA_1, rsak);
   test_rsa_decrypt_oaep(funcs, session, obj_pvtkey, N_SELECTED_KEYS, CKM_SHA256, rsak);
-  
+
+  RSA_free(rsak);
+  EVP_PKEY_free(evp);
   destroy_test_objects(funcs, session, obj_cert, N_SELECTED_KEYS);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -800,7 +808,7 @@ static void test_encrypt_RSA() {
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
-  import_rsa_key(funcs, session, 1024, evp, rsak, N_SELECTED_KEYS, obj_cert, obj_pvtkey);
+  import_rsa_key(funcs, session, 1024, &evp, &rsak, N_SELECTED_KEYS, obj_cert, obj_pvtkey);
   if (evp == NULL ||  rsak == NULL)
     exit(EXIT_FAILURE);
 
@@ -808,6 +816,8 @@ static void test_encrypt_RSA() {
   test_rsa_encrypt(funcs, session, obj_pvtkey, N_SELECTED_KEYS, rsak, CKM_RSA_X_509, RSA_NO_PADDING);
   test_rsa_encrypt(funcs, session, obj_pvtkey, N_SELECTED_KEYS, rsak, CKM_RSA_PKCS_OAEP, RSA_PKCS1_OAEP_PADDING);
 
+  RSA_free(rsak);
+  EVP_PKEY_free(evp);
   destroy_test_objects(funcs, session, obj_cert, N_SELECTED_KEYS);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
