@@ -1726,7 +1726,6 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
     case CKA_TOKEN:
     case CKA_LABEL:
     case CKA_SUBJECT:
-    case CKA_DERIVE:
       // Ignore other attributes
       break;
 
