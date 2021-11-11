@@ -37,6 +37,7 @@
 #include <windows.h>
 #endif
 
+#include <openssl/opensslv.h>
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
