@@ -575,7 +575,7 @@ CK_RV do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
   RSA *rsa = NULL;
   const BIGNUM *n = NULL;
 
-  rsa = EVP_PKEY_get0_RSA(key);
+  rsa = (struct rsa_st *) EVP_PKEY_get0_RSA(key);
   if (rsa == NULL)
     return CKR_FUNCTION_FAILED;
 
@@ -594,7 +594,7 @@ CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR 
   RSA *rsa = NULL;
   const BIGNUM *bn_e;
 
-  rsa = EVP_PKEY_get0_RSA(key);
+  rsa = (struct rsa_st *) EVP_PKEY_get0_RSA(key);
   if (rsa == NULL)
     return CKR_FUNCTION_FAILED;
 
@@ -624,7 +624,7 @@ CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) 
   switch(EVP_PKEY_base_id(key)) {
   case EVP_PKEY_RSA:
 
-    rsa = EVP_PKEY_get0_RSA(key);
+    rsa = (struct rsa_st *) EVP_PKEY_get0_RSA(key);
 
     if ((CK_ULONG)RSA_size(rsa) > *len) {
       return CKR_BUFFER_TOO_SMALL;
@@ -647,7 +647,7 @@ CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) 
     break;
 
   case EVP_PKEY_EC:
-    eck = EVP_PKEY_get0_EC_KEY(key);
+    eck = (struct ec_key_st *) EVP_PKEY_get0_EC_KEY(key);
     ecg = EC_KEY_get0_group(eck);
     ecp = EC_KEY_get0_public_key(eck);
 
@@ -675,7 +675,7 @@ CK_RV do_get_curve_parameters(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR
   const EC_GROUP *ecg;
   unsigned char *p;
 
-  eck = EVP_PKEY_get0_EC_KEY(key);
+  eck = (struct ec_key_st *) EVP_PKEY_get0_EC_KEY(key);
   if(eck == NULL) {
     return CKR_FUNCTION_FAILED;
   }

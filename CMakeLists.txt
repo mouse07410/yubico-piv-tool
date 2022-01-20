@@ -104,6 +104,7 @@ else()
 
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-missing-braces")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-declarations")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wformat -Wformat-security")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-prototypes")

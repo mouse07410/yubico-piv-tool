@@ -1247,6 +1247,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   }
 
   switch (userType) {
+
   case CKU_CONTEXT_SPECIFIC:
     if (session->op_info.type != YKCS11_SIGN && session->op_info.type != YKCS11_DECRYPT) {
       DBG("No sign or decrypt operation in progress. Context specific user is forbidden.");

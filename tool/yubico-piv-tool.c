@@ -187,7 +187,7 @@ static void wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_
   int_key.oid_len = oid_len;
   if(YKPIV_IS_RSA(algorithm)) {
     RSA_METHOD *meth = RSA_meth_dup(RSA_get_default_method());
-    RSA *rsa = EVP_PKEY_get0_RSA(public_key);
+    RSA *rsa = (struct rsa_st *) EVP_PKEY_get0_RSA(public_key);
     if(RSA_meth_set0_app_data(meth, &int_key) != 1) {
       fprintf(stderr, "Failed to set RSA data\n");
     }
@@ -198,7 +198,7 @@ static void wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_
       fprintf(stderr, "Failed to wrap RSA key\n");
     }
   } else {
-    EC_KEY *ec = EVP_PKEY_get0_EC_KEY(public_key);
+    EC_KEY *ec = (struct ec_key_st *) EVP_PKEY_get0_EC_KEY(public_key);
     EC_KEY_METHOD *meth = EC_KEY_METHOD_new(EC_KEY_get_method(ec));
     if (ec_key_ex_data_idx == -1)
       ec_key_ex_data_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL, 0);
