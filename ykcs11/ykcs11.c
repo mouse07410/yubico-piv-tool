@@ -1549,17 +1549,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       goto create_out;
     }
 
-    rv = ykpiv_import_private_key(session->slot->piv_state, slot, algorithm,
-                                  p, p_len,
-                                  q, q_len,
-                                  dp, dp_len,
-                                  dq, dq_len,
-                                  qinv, qinv_len,
-                                  ec_data, ec_data_len,
-                                  pin_policy, touch_policy);
-    if (rv != CKR_OK) {
+    ykpiv_rc rc = ykpiv_import_private_key(session->slot->piv_state, slot, algorithm,
+                               p, p_len,
+                               q, q_len,
+                               dp, dp_len,
+                               dq, dq_len,
+                               qinv, qinv_len,
+                               ec_data, ec_data_len,
+                               pin_policy, touch_policy);
+    if (rc != YKPIV_OK) {
       DBG("Unable to import private key");
       locking.pfnUnlockMutex(session->slot->mutex);
+      rv = CKR_DEVICE_ERROR;
       goto create_out;
     }
 
@@ -1569,7 +1570,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     unsigned char data[YKPIV_OBJ_MAX_SIZE];
     size_t len = sizeof(data);
-    ykpiv_rc rc;
     if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
       DBG("Fetched %zu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
       ykpiv_metadata md = {0};
@@ -3580,6 +3580,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
       }
     } else {
       DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rc));
+      if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
+        DBG("Fetched %zu bytes metadata for slot %lx", len, slot);
+        ykpiv_metadata md = {0};
+        if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
+          session->slot->origin[gen.key_id] = md.origin;
+          session->slot->pin_policy[gen.key_id] = md.pin_policy;
+          session->slot->touch_policy[gen.key_id] = md.touch_policy;
+        } else {
+          DBG("Failed to parse metadata for slot %lx: %s", slot, ykpiv_strerror(rc));
+        }
+      } else {
+        DBG("Failed to fetch metadata for slot %lx: %s", slot, ykpiv_strerror(rc));
+      }
     }
   }
 
