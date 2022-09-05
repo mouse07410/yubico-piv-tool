@@ -599,11 +599,7 @@ CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG len)
   const RSA *rsa = NULL;
   const BIGNUM *bn_e;
 
-<<<<<<< HEAD
-  rsa = (struct rsa_st *) EVP_PKEY_get0_RSA(key);
-=======
   rsa = key ? EVP_PKEY_get0_RSA(key) : 0;
->>>>>>> e432a4ff2c08c81e1c822ea3c8acc9f4f5db7a1c
   if (rsa == NULL)
     return CKR_ATTRIBUTE_TYPE_INVALID;
 
