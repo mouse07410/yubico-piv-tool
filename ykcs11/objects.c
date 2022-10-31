@@ -477,6 +477,20 @@ static CK_RV _get_coa(ykcs11_x509_t **certs, piv_obj_id_t obj, CK_ATTRIBUTE_PTR 
     data = b_tmp;
     break;
 
+  case CKA_COPYABLE:
+    DBG("COPYABLE");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = CK_FALSE;
+    data = b_tmp;
+    break;
+
+  case CKA_DESTROYABLE:
+    DBG("DESTROYABLE");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = CK_TRUE;
+    data = b_tmp;
+    break;
+
   case CKA_TRUSTED:
     DBG("TRUSTED");
     len = sizeof(CK_BBOOL);
@@ -838,35 +852,35 @@ static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
   case CKA_PRIVATE:
     DBG("PRIVATE");
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = CK_TRUE;
+    b_tmp[0] = CK_FALSE;
     data = b_tmp;
     break;
 
   case CKA_SENSITIVE:
     DBG("SENSITIVE");
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = CK_TRUE;
+    b_tmp[0] = CK_FALSE;
     data = b_tmp;
     break;
 
   case CKA_ALWAYS_SENSITIVE:
     DBG("ALWAYS_SENSITIVE");
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = CK_TRUE;
+    b_tmp[0] = CK_FALSE;
     data = b_tmp;
     break;
 
   case CKA_EXTRACTABLE:
     DBG("EXTRACTABLE");
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = CK_FALSE;
+    b_tmp[0] = CK_TRUE;
     data = b_tmp;
     break;
 
   case CKA_NEVER_EXTRACTABLE:
     DBG("NEVER_EXTRACTABLE");
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = CK_TRUE;
+    b_tmp[0] = CK_FALSE;
     data = b_tmp;
     break;
 
@@ -1980,6 +1994,13 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
     case CKA_TOKEN:
       if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
         DBG("CKA_TOKEN must be TRUE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_PRIVATE:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+        DBG("CKA_PRIVATE must be TRUE or omitted");
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
       break;
